@@ -1,0 +1,37 @@
+# LaTeX auxiliary files
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.bbl
+*.blg
+
+# Build tool auxiliary files
+*.fdb_latexmk
+*.synctex
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+# Generated documents
+*.dvi
+*.1
+
+# Bundle
+.bundle
+vendor/*
+
+# Temporaly
+tmp/*
+texdoc-*.zip
+
+# Cache
+script/Data.tlpdb.lua
+
+# local
+*.vimrc
+output/*
