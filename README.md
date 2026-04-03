@@ -1,4 +1,14 @@
-# COMP 4107 Project - Group 10
+# Mime
+
+<div align="center">
+
+### Universal speech, visualized in real-time
+
+</div>
+
+> COMP 4107 Project - Group 10
+> 
+> Daniel Lu, Methira Herath
 
 A high-performance, low-latency pipeline for real-time speech-to-speech translation with 3D facial animation support, designed for Windows/Zoom environments.
 
