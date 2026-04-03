@@ -1,13 +1,5 @@
 # COMP 4107 Project - Group 10
 
-Since we are using the industry-standard `pyproject.toml`, the "Getting Started" section is much cleaner. It focuses on environment synchronization rather than manual pip installs.
-
-Here is a professional, speed-oriented **README.md** tailored for your project.
-
----
-
-# AI Live Translator & 3D Overlay
-
 A high-performance, low-latency pipeline for real-time speech-to-speech translation with 3D facial animation support, designed for Windows/Zoom environments.
 
 ## Getting Started
