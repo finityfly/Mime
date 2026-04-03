@@ -1,0 +1,27 @@
+[project]
+name = "project-group-10"
+version = "0.1.0"
+description = "Live AI Translation & 3D Mouth Overlay Pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "groq>=1.1.2",
+    "huggingface-hub>=1.8.0",
+    "numpy>=2.2.6",
+    "opencv-python>=4.13.0.92",
+    "pyaudio>=0.2.14",
+    "pyrender>=0.1.45",
+    "python-dotenv>=1.2.2",
+    "pyvirtualcam>=0.15.0",
+    "torch>=2.11.0",
+    "trimesh>=4.11.5",
+    "websockets>=16.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+managed = true
