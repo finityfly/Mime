@@ -57,3 +57,38 @@ If the STT is too sensitive or "hallucinating" words during silence:
 1. Observe the **Peak Vol** logs in the console while silent.
 2. Open `src/utils/stt_engine.py`.
 3. Adjust `self.SILENCE_THRESHOLD` to be slightly above your ambient noise floor.
+
+## Training the Lip-Sync Model
+
+The Visual Lip-Sync Pipeline uses a Transformer-based model to map audio features to 52 ARKit blendshape coefficients. We use the **BEAT Dataset** for high-fidelity training.
+
+### 1. Training Environment
+The training is conducted via the `notebooks/train.ipynb` file. This notebook is designed to run in a Jupyter environment with a GPU.
+
+```bash
+# Ensure dev dependencies are installed (including ipykernel)
+uv add --dev ipykernel
+
+# Launch Jupyter
+jupyter notebook notebooks/ABS_train.ipynb
+```
+
+### 2. Hyperparameter Fitting
+The training script implements a grid-search approach to find the optimal model. You can toggle between:
+* **Custom Phonetic-CNN:** A from-scratch encoder that learns phonetics specifically for this task.
+* **Pre-trained Wav2Vec 2.0:** A robust backbone that provides higher accuracy but slightly more latency.
+
+### 3. Monitoring with TensorBoard
+All trials log their loss curves and hyperparameters to the `logs/` directory in the project root. To visualize the "fitting" process:
+
+```bash
+# From the project root
+tensorboard --logdir=logs
+```
+Navigate to the **HParams** tab in the browser to compare different model configurations.
+
+### 4. Model Artifacts
+The training loop automatically performs the following:
+1. **Validation:** Checks performance against a 10% hold-out set of the BEAT dataset.
+2. **Serialization:** Saves the best-performing version of each trial as a `.pt` file in the `models/` directory.
+3. **Traceability:** Each saved model includes its specific configuration dictionary, making it easy to load into the live orchestrator.
