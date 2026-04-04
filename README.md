@@ -45,7 +45,7 @@ Create a `.env` file in the root directory and populate it with your API credent
 GROQ_API_KEY=gsk_your_key_here
 
 # Inworld (TTS)
-INWORLD_AUTH_SIGNATURE=aHd......g==  # Use the Basic (Base64) field
+INWORLD_AUTH_SIGNATURE=aHd......g==  # Base64 field
 
 # Hugging Face (Model Access)
 HF_TOKEN=hf_your_token_here
@@ -62,11 +62,26 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 python src/main.py
 ```
 
-### 5. Hardware Calibration
-If the STT is too sensitive or "hallucinating" words during silence:
-1. Observe the **Peak Vol** logs in the console while silent.
-2. Open `src/utils/stt_engine.py`.
-3. Adjust `self.SILENCE_THRESHOLD` to be slightly above your ambient noise floor.
+### 5. Downloading the Dataset Locally
+To download the BEAT dataset into this repository's `data/` folder, install the Hugging Face CLI first, then run `hf download`.
+
+Install Hugging Face CLI:
+
+```bash
+# macOS and Linux
+curl -LsSf https://hf.co/cli/install.sh | bash
+```
+
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://hf.co/cli/install.ps1 | iex"
+```
+
+Download dataset into the local `data` directory:
+
+```bash
+hf download H-Liu1997/BEAT --repo-type dataset --local-dir data/beat_english_v0.2.1
+```
 
 ## Training the Lip-Sync Model
 
