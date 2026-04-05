@@ -24,8 +24,8 @@ We use `uv` for lightning-fast, reproducible dependency management. If you don't
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/project-group-10.git
-cd project-group-10
+git clone https://github.com/2026W-COMP4107/mime.git
+cd mime
 
 # Virtual environment setup
 python -m venv .venv
