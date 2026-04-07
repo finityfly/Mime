@@ -1923,6 +1923,11 @@ dependencies = [
     { name = "websockets" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "ipykernel" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "datasets", specifier = ">=4.8.4" },
@@ -1943,6 +1948,9 @@ requires-dist = [
     { name = "trimesh", specifier = ">=4.11.5" },
     { name = "websockets", specifier = ">=16.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ipykernel", specifier = ">=7.2.0" }]
 
 [[package]]
 name = "mpmath"

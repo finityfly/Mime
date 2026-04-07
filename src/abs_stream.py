@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 import pyaudio
 import torch
-from transformers import Wav2Vec2Model
+# from transformers import Wav2Vec2Model
 
 
 ARKIT_BLENDSHAPE_NAMES = [
@@ -74,6 +74,7 @@ class AudioToBlendshapeModel(torch.nn.Module):
         self.use_pretrained = use_pretrained
 
         if self.use_pretrained:
+            from transformers import Wav2Vec2Model
             self.audio_backbone = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base-960h")
             self.audio_proj = torch.nn.Linear(768, hidden_dim)
         else:
@@ -244,11 +245,18 @@ class MicABSMonitor:
                     pass
                 self.stream = None
 
-    def _frames_to_audio(self, frames):
+    def _frames_to_audio(self, frames, gain=7.0):
         audio_int16 = np.frombuffer(b"".join(frames), dtype=np.int16)
         if len(audio_int16) == 0:
             return None
-        audio = audio_int16.astype(np.float32) / 32768.0
+        
+        # Convert to float and apply gain
+        audio_float = audio_int16.astype(np.float32) / 32768.0
+        audio_float = audio_float * gain 
+        
+        # Hard clip to prevent blowing out the tensor (-1.0 to 1.0)
+        audio = np.clip(audio_float, -1.0, 1.0)
+        
         return torch.from_numpy(audio).unsqueeze(0)
 
     def _predict_blendshape(self, audio_tensor):
