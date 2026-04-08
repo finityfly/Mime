@@ -37,6 +37,41 @@ pip install uv
 uv sync
 ```
 
+#### Optional: Force CUDA PyTorch Versions with `uv`
+If you need the exact CUDA-enabled PyTorch stack (for example `+cu118` wheels), this repo includes pinned versions in `pyproject.toml` and routes `torch`, `torchvision`, and `torchaudio` to the PyTorch CUDA index.
+
+Use:
+
+```bash
+# Refresh lockfile using pinned versions
+uv lock
+
+# Install exactly what is locked
+uv sync
+```
+
+If you hit this error on Windows during `uv sync`:
+`triton==2.1.0 ... doesn't have a source distribution or wheel for the current platform`
+
+regenerate the lockfile from the current `pyproject.toml` and sync again:
+
+```bash
+uv lock --refresh
+uv sync
+```
+
+Quick GPU verification:
+
+```bash
+uv run python -c "import torch; print(torch.__version__); print(torch.version.cuda); print(torch.cuda.is_available())"
+```
+
+If you specifically want a requirements-style install equivalent to pip:
+
+```bash
+uv pip install --index-url https://download.pytorch.org/whl/cu118 -r torch.txt
+```
+
 ### 3. Configuration
 Create a `.env` file in the root directory and populate it with your API credentials:
 
@@ -147,7 +182,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://hf.co/cli/install.ps1 | iex"
 Download dataset into the local `data` directory:
 
 ```bash
-hf download H-Liu1997/BEAT --repo-type dataset --local-dir data/beat_english_v0.2.1
+hf download H-Liu1997/BEAT --repo-type dataset --local-dir data
 ```
 
 ## Training the Lip-Sync Model

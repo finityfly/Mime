@@ -1,5 +1,7 @@
 .env
+.env.*
 .venv/
 __pycache__/
-# logs/*/
+logs/*/
 data/
+.ipynb_checkpoints/

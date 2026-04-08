@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 import pyaudio
 import torch
-# from transformers import Wav2Vec2Model
 
 
 ARKIT_BLENDSHAPE_NAMES = [
@@ -73,22 +72,17 @@ class AudioToBlendshapeModel(torch.nn.Module):
         super().__init__()
         self.use_pretrained = use_pretrained
 
-        if self.use_pretrained:
-            from transformers import Wav2Vec2Model
-            self.audio_backbone = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base-960h")
-            self.audio_proj = torch.nn.Linear(768, hidden_dim)
-        else:
-            self.audio_backbone = torch.nn.Sequential(
-                torch.nn.Conv1d(1, 64, kernel_size=10, stride=4, padding=3),
-                torch.nn.BatchNorm1d(64),
-                torch.nn.ReLU(),
-                torch.nn.Conv1d(64, 128, kernel_size=4, stride=4, padding=1),
-                torch.nn.ReLU(),
-                torch.nn.Conv1d(128, 256, kernel_size=4, stride=4, padding=1),
-                torch.nn.ReLU(),
-                torch.nn.Conv1d(256, hidden_dim, kernel_size=4, stride=4, padding=1),
-                torch.nn.ReLU(),
-            )
+        self.audio_backbone = torch.nn.Sequential(
+            torch.nn.Conv1d(1, 64, kernel_size=10, stride=4, padding=3),
+            torch.nn.BatchNorm1d(64),
+            torch.nn.ReLU(),
+            torch.nn.Conv1d(64, 128, kernel_size=4, stride=4, padding=1),
+            torch.nn.ReLU(),
+            torch.nn.Conv1d(128, 256, kernel_size=4, stride=4, padding=1),
+            torch.nn.ReLU(),
+            torch.nn.Conv1d(256, hidden_dim, kernel_size=4, stride=4, padding=1),
+            torch.nn.ReLU(),
+        )
 
         encoder_layer = torch.nn.TransformerEncoderLayer(
             d_model=hidden_dim,
