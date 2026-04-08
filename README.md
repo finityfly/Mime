@@ -51,16 +51,83 @@ INWORLD_AUTH_SIGNATURE=aHd......g==  # Base64 field
 HF_TOKEN=hf_your_token_here
 ```
 
-### 4. Running the Pipeline
-Activate the environment and run the central orchestrator:
+### 4. Run Zoom Mime Client
+Activate the environment and launch the client:
 
 ```bash
 # Activate the virtual environment
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Launch the live translation engine
-python src/main.py
+# Launch Zoom Mime Client (STT + MT + TTS + Zoom bridge)
+python src/client_main.py --enable-zoom-bridge
 ```
+
+Optional overrides:
+
+```bash
+python src/client_main.py --enable-zoom-bridge \
+	--zoom-width 1280 \
+	--zoom-height 720 \
+	--zoom-fps 30 \
+	--audio-rate 48000 \
+	--audio-buffer 960 \
+	--audio-device-name "CABLE Input"
+```
+
+## Zoom Mime Client Setup (Windows)
+
+This section is a simple getting-started guide to route generated avatar video and TTS audio directly into Zoom.
+
+### 1. Install required Windows apps
+Install and verify these once on Windows:
+
+1. **OBS Studio** (provides virtual camera backend commonly used by `pyvirtualcam` on Windows).
+2. **VB-CABLE** (or VB-Audio virtual cable family).
+3. **Zoom Desktop Client**.
+
+After install:
+
+1. Reboot Windows (important for audio device registration).
+2. In Windows Sound settings, verify you can see a playback device containing one of:
+	 - `CABLE Input`
+	 - `VB-Audio`
+3. In Zoom audio settings, verify you can select the corresponding cable microphone (often `CABLE Output`).
+
+### 2. Zoom app configuration
+In Zoom before joining a meeting:
+
+1. **Video** -> Camera: select the virtual camera exposed by your system (`pyvirtualcam` backend).
+2. **Audio** -> Microphone: select the cable microphone endpoint (often `CABLE Output`).
+3. **Audio** -> disable auto volume if needed and tune manually to avoid pumping.
+
+### 3. What starts when you run the client
+When you launch `python src/client_main.py --enable-zoom-bridge`, the app starts:
+
+1. Speech-to-Text (STT)
+2. Machine Translation (MT)
+3. Text-to-Speech (TTS)
+4. Zoom bridge transport (virtual camera + virtual cable audio output)
+
+The bridge auto-retries every 3 seconds if the camera or cable is temporarily unavailable.
+
+### 4. Troubleshooting checklist
+
+- **No camera in Zoom**:
+	- Ensure OBS virtual camera support is installed.
+	- Close apps that might lock the same virtual camera.
+	- Look for bridge logs: `Virtual camera unavailable; retrying in 3s`.
+
+- **No cable audio in Zoom**:
+	- Confirm VB-CABLE is installed and visible in Windows Sound.
+	- Launch with `--audio-device-name "CABLE Input"` to force device selection.
+
+- **Choppy output under heavy inference**:
+	- Lower `--zoom-fps` or output resolution.
+	- Keep background GPU-heavy apps closed when possible.
+
+- **Distortion/clipping**:
+	- Keep source audio in range; the bridge already applies normalization and soft limiting.
+	- If needed, reduce upstream TTS gain.
 
 ### 5. Downloading the Dataset Locally
 To download the BEAT dataset into this repository's `data/` folder, install the Hugging Face CLI first, then run `hf download`.

@@ -2,14 +2,16 @@ import os, json, base64, asyncio, threading, queue, pyaudio, time
 import websockets
 
 class TTSProcessor:
-    def __init__(self, input_queue, log_callback):
+    def __init__(self, input_queue, log_callback, audio_callback=None):
         self.input_queue = input_queue
         self.log = log_callback
+        self.audio_callback = audio_callback
         self.auth = os.getenv("INWORLD_AUTH_SIGNATURE")
         self.ws_url = "wss://api.inworld.ai/v1/tts:synthesize-stream"
-        
-        self.p = pyaudio.PyAudio()
-        self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=48000, output=True)
+
+        if self.audio_callback is None:
+            self.p = pyaudio.PyAudio()
+            self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=48000, output=True)
 
     async def _ws_handler(self):
         headers = {"Authorization": f"Basic {self.auth}"}
@@ -48,7 +50,10 @@ class TTSProcessor:
                                 received_first_byte = True
                                 
                             audio_bytes = base64.b64decode(data["audioContent"])
-                            self.stream.write(audio_bytes)
+                            if self.audio_callback is not None:
+                                self.audio_callback(audio_bytes)
+                            else:
+                                self.stream.write(audio_bytes)
                         
                         if data.get("isFinal"):
                             self.log("[TTS] Sentence Finished Playing")
