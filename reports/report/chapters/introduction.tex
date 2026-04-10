@@ -2,9 +2,9 @@
 \chapter{Introduction}
 %======================================================================
 
-Language barriers in video communication are no longer only a text or audio problem. Recent progress in speech-to-text, machine translation, and text-to-speech has made multilingual conversations more accessible, but live conversations over video still feel unnatural when the spoken audio and visible mouth motion do not match. This mismatch introduces an immersion gap: listeners hear translated speech while seeing lip movements that correspond to a different language and timing. In practical settings such as online meetings, this visual-audio inconsistency can reduce comprehension, increase cognitive load, and make interactions feel less human.
+Language barriers in video communication are no longer only a text or audio problem. Recent progress in speech-to-text, machine translation, and text-to-speech has made multilingual conversations more accessible, but live conversations over video still feel unnatural when the spoken audio and visible mouth motion do not match. This mismatch introduces an \textit{immersion gap}: listeners hear translated speech while seeing lip movements that correspond to a different language and timing. In practical settings such as online meetings, this visual-audio inconsistency can reduce comprehension, increase cognitive load, and make interactions feel less human.
 
-This report presents Mime, a real-time multimodal communication system that chains speech translation with synchronized facial animation, running on consumer hardware with latency low enough for live calls. Rather than generating synthetic face frames from scratch, Mime predicts ARKit facial blendshape coefficients directly from audio features and renders them on an animated avatar: an approach that trades some visual fidelity for the speed that live operation requires.
+This report presents \textbf{Mime}, a real-time multimodal communication system that chains speech translation with synchronized facial animation, running on consumer hardware with latency low enough for live calls. Rather than generating synthetic face frames from scratch, Mime predicts ARKit facial blendshape coefficients directly from audio features and renders them on an animated avatar: an approach that intentionally trades some visual fidelity for the speed that \textit{live operation} requires.
 
 \section{Background}
 
@@ -17,15 +17,17 @@ State-of-the-art visual dubbing systems address this problem, but they were desi
 The project is motivated by a simple goal: make multilingual video conversation feel coherent in both sound and appearance. Instead of treating translation and lip-sync as separate tools, Mime integrates them into one stream-oriented system. The platform is designed around three core objectives:
 
 \begin{enumerate}
-    \item Build an end-to-end real-time pipeline that chains speech recognition, machine translation, and synthesized speech with an audio-to-blendshape visual model.
-    \item Produce temporally stable lip-sync by mapping speech features to 52 ARKit facial blendshape coefficients and rendering an animated avatar suitable for live overlay or virtual camera output.
-    \item Maintain low latency and deployment practicality on consumer-grade hardware, with integration support for common video conferencing workflows.
+    \item \textbf{End-to-end integration:} Build a real-time pipeline that chains speech recognition, machine translation, and synthesized speech with an audio-to-blendshape visual model.
+    \item \textbf{Temporal visual coherence:} Produce stable lip-sync by mapping speech features to 52 ARKit facial blendshape coefficients and rendering an animated avatar suitable for live overlay or virtual camera output.
+    \item \textbf{Deployment practicality:} Maintain low latency on consumer-grade hardware, with integration support for common video conferencing workflows.
 \end{enumerate}
 
 In implementation terms, Mime uses modular processors for STT, MT, and TTS, then routes synthesized audio to both playback and a fast inference path for facial animation. This architecture enables synchronized media output and reduces duplicated processing in live operation.
 
 \section{Related Prior Work}
 
-Current lip-sync and visual dubbing approaches span a wide spectrum. Production-focused systems can achieve high realism but are generally optimized for offline editing, where latency is not constrained. Open-source real-time methods are more accessible but may exhibit temporal instability, visual artifacts, or limited integration with multilingual speech pipelines.
+The main tools people have built for this are visual dubbing systems. Wav2Lip \cite{prajwal2020wav2lip} masks the lower face of a video and inpaints it conditioned on audio, achieving lip sync close to real recordings. VideoReTalking \cite{cheng2022videoretalking} adds expression normalization and face enhancement on top of a similar approach, producing cleaner results. SadTalker \cite{zhang2023sadtalker} goes further, predicting 3D morphable model coefficients from audio to get more natural head movement than purely pixel-level methods. All three produce good output, but they assume pre-recorded video and offline compute. None are designed for a live call.
 
-Recent advances in audio-driven facial animation and large multimodal datasets provide a strong foundation for practical systems. In particular, datasets that pair speech with ARKit-style facial parameters enable direct supervision of blendshape prediction models. Mime builds on this direction by using a lightweight, inference-oriented mapping from audio features to facial control signals, then connecting that output to a conferencing-ready media bridge. The contribution of this project is not a single isolated model, but a cohesive real-time system that combines translation, speech synthesis, and visual synchronization into one deployable workflow.
+The parametric side of the literature is more relevant to Mime's approach. VOCA \cite{cudeiro2019voca} showed you can map audio features directly to a structured face representation, specifically 3D mesh vertex displacements, and animate a wide range of identities from a single model. Mime follows the same principle but targets ARKit blendshape coefficients, which are lighter to infer and render directly on avatar-based output. For the speech side, Whisper \cite{radford2023whisper} provides a practical multilingual transcription foundation, trained on 680,000 hours of audio across dozens of languages with near-human accuracy in a zero-shot setting.
+
+The gap none of these works address is the \textit{full pipeline}: translation, synthesis, and synchronized facial animation running together in real time. That is the specific scope Mime targets.

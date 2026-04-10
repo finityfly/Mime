@@ -2,74 +2,109 @@
 \chapter{Methods}
 %======================================================================
 
-\section{Methods from Artificial Intelligence}
+\section{Methods from Neural Networks}
 
-Tobio leverages several methods from the computer vision and machine learning domains to achieve its aforementioned objectives. These methods can separated into four main stages: court boundary masking and segmentation, ball trajectory tracking, player recognition and tracking, and an events' system that detects volleyball-specific actions and works with the other components to ultimately generate meaningful statistics. I will be going through each of these stages in detail.
+Mime is implemented as two coupled neural pipelines: a \textbf{speech translation pipeline} (STT $\rightarrow$ MT $\rightarrow$ TTS) and an \textbf{audio-to-blendshape (ABS) pipeline} that drives a 3D ARKit avatar in real time.
 
-\subsection{Court Boundary Detection and Segmentation}
+\subsection{Speech Translation Pipeline}
 
-The initial court boundary masking was handled by a YOLOv11 segmentation model trained on a public dataset sourced from Roboflow. The model was trained to output a cloud of points that attempted to trace the correct court boundaries given a head-on view of a volleyball court (app/backend/court\_tracker.py). Given this points cloud, a modifed convex hull algorithm was applied to estimate the position of the four corners of the court (app/backend/court\_estimator.py), even if the corners were out of frame.
+\noindent\textbf{Speech-to-Text (STT):} The microphone stream is captured at 16 kHz mono and segmented online using an RMS-based voice activity strategy. Chunks are finalized after a silence window and transcribed with Groq's \texttt{whisper\allowbreak-large\allowbreak-v3\allowbreak-turbo}. This chunked design reduces unnecessary API calls and keeps inference focused on complete utterances.
 
-It's important to note that several of the models I used for this project were trained using the Ultralytics YOLOv11 framework, which was a choice made mostly for my familiarity, its ease of use, and its strong performance and reputation in computer vision. Had I was given one more 4-month term, I would have experimented with other state-of-the-art detection and segmentation models, or even crafted my own custom architectures tailored specifically for volleyball.
+\noindent\textbf{Machine Translation (MT):} Each English utterance is translated to conversational French using \texttt{llama\allowbreak-3.3\allowbreak-70b\allowbreak-versatile} through a constrained system prompt. A short rolling context buffer is included to improve coherence for fragments and pronoun resolution during live dialogue.
 
-\subsection{Ball Trajectory Tracking}
+\noindent\textbf{Text-to-Speech (TTS):} French text is synthesized by Inworld TTS (default model \texttt{inworld\allowbreak-tts\allowbreak-1.5\allowbreak-mini}, French voice). Audio is streamed as LINEAR16 at 48 kHz so playback can begin before sentence completion, which lowers perceived latency in meetings.
 
-I had to face the choice between using a better performing TrackNet model that was able to track high-speed balls with ease, but outputted just raw coordinates without any bounding boxes (since it's for tiny objects), versus a YOLOv11 detection model that outputted bounding boxes but may struggle more with fast-moving balls. I opted for the YOLO model since I figured that the bounding box information was a crucial element to derive the 3D spactial depth of the ball in later stages. I specifically trained YOLOv11's nano model since tracking the ball compared to the capabilities of a modern object detection neural network is a relatively simple task, especially for a large bright volleyball, and I wanted to optimize for inference and training speed (app/backend/ball\_tracker.py).
+\subsection{Audio-to-Blendshape Neural Model}
 
-\subsection{Player Tracking}
+The visual pipeline predicts 52 ARKit blendshape coefficients from audio. The training notebook uses a strided 1D convolutional frontend for local phonetic feature extraction, followed by:
 
-Player tracking proved to be one of the most challenging portions of the whole project, since in a volleyball game, 12 players are constantly moving, occluding each other, and changing poses, on both sides of the net. Even to an average human observer, it can be difficult to keep track of each individual player over the course of a long rally, let alone for a computer.
+\begin{enumerate}
+    \item a temporal depthwise mixing block,
+    \item sinusoidal positional encoding,
+    \item a Transformer encoder for long-range temporal context,
+    \item a regression head with sigmoid outputs to constrain coefficients to $[0,1]$.
+\end{enumerate}
 
-To tackle this, I implemented a multi-object tracking (MOT) system using the more powerful YOLOv11 medium model for player detection, combined with a custom identity re-identification (ReID) model specifically for volleyball players (app/backend/player\_tracker.py). The YOLO model would first output the general unidentified bounding boxes of all players in each frame, and then the ReID model would extract feature vectors from each bounding box and compare them to a gallery of already-seen players to assign consistent IDs over the course of a game (capped to 12 unique IDs). These player embeddings were generated from a ResNet18-based appearance model and were compared across frames using cosine similarity, to try to combat common issues like overlaps and occlusions. Finally, the player IDs were assigned from bottom-to-top via comparing their lower borders with the court midpoint, to give ID priority to the players closer to the camera (they are the most likely to be the team of interest).
+Given predicted sequence $\hat{Y}$ and target sequence $Y$, the core objective is \textit{masked mean squared error} over valid (unpadded) frames:
 
-\subsection{Event Detection System}
+$$
+\mathcal{L}_{\text{mse}} = \frac{1}{N}\sum_{t \in \Omega} \lVert \hat{Y}_t - Y_t \rVert_2^2
+$$
 
-The event detection system is the core of Tobio's analytical systems and therefore it's important that it has as high of an accuracy as possible. Early testing showed that the dedicated serve recognition model (app/backend/serve\_recognizer.py) with YOLOv11n was much more accurate than the general action classifier's serve class, so I merged serve detection into a single stage using the specialized model. Classifying serves are so important to distinguish the start and end of rallies, as well as to determine who won the point, so having a dedicated model made sense. It used temporal logic to group consecutive serve frames and accurately estimate the serve events from spike noise.
+To encourage realistic temporal dynamics and reduce jitter, training adds a velocity consistency term:
 
-All other other volleyball actions (spike, block, defense, set) are detected by the action classifier \\(app/backend/action\_classifier.py), which uses extensive sliding window, trigger threshold, and cooldown logic to group actions and avoid duplicates. Both of these models in event detection timestamp and store events with their frame ranges and bounding boxes, but without identification details, which is where the `links\_actions\_to\_players` module (app/backend/utils.py) comes in. This module cross-references the ball and player tracking data with the event timestamps and intersection over union (IoU) of bounding boxes to assign the most likely player IDs to each event.
+$$
+\mathcal{L}_{\text{vel}} = \frac{1}{N'}\sum_{t \in \Omega'} \lVert (\hat{Y}_t-\hat{Y}_{t-1}) - (Y_t-Y_{t-1}) \rVert_2^2
+$$
 
-\section{Datasets}
+with total loss:
 
-Each dataset and task environment in Tobio is obtained intentionally to match the real-world objectives of volleyball analytics as close as possible. Each task is given its most enriched dataset pipeline I could attain to optimize for high-performance in its specific domain.
+$$
+\mathcal{L} = \mathcal{L}_{\text{mse}} + \lambda\,\mathcal{L}_{\text{vel}}, \quad \lambda = 0.35
+$$
 
-\subsection{Court Segmentation Dataset}
-For court boundary segmentation, Tobio uses the "Volleyball Court Segmentation" dataset from Roboflow, which contains 10,000 annotated images in COCO segmentation format of volleyball court boundaries in various environments from multiple angles. This dataset provides diverse examples of court appearances, lighting conditions, and occlusions, enabling the model to generalize well to different match settings. However, it's important to note that it notably lacked multi-use gyms where recreational volleyball is often played, which may lead to some shortcomings for analyzing more casual games in such environments.
+Training uses AdamW, OneCycleLR scheduling, mixed precision on CUDA, gradient clipping, and early stopping.
 
-\textbf{Dataset link:} \url{https://universe.roboflow.com/thesis-r4nbe/volleyball-court-seg/dataset/9}
+\subsection{Real-Time Inference and Rendering}
 
-\subsection{Ball Detection Dataset}
-Ball tracking is trained on a compiled volleyball dataset with nearly 20,000 annotated images, also sourced from Roboflow, with bounding box annotations for volleyballs in a variety of lighting and occlusion conditions. 
+At runtime, the client uses an optimized ABS inference path with a sliding audio window and queue-based frame updates. Predicted blendshape vectors are remapped from BEAT ordering to canonical ARKit ordering, then applied to morph targets in a rigged GLB avatar via an offscreen renderer.
 
-\textbf{Dataset link:} \url{https://universe.roboflow.com/volley-pjhnb/volleyball-q7cun/dataset/3}
+A transport bridge publishes:
 
-\subsection{Player Tracking Dataset}
-For player tracking, Tobio leverages the SportsMOT dataset (https://github.com/MCG-NJU/SportsMOT), a large-scale multi-object tracking benchmark specifically designed for sports analytics. SportsMOT provides high-quality annotations for player identities and positions across multiple sports, including volleyball, making it ideal for training robust volleyball player tracking models.
+\begin{enumerate}
+    \item rendered avatar frames to a virtual camera, and
+    \item synthesized TTS audio to a virtual cable device,
+\end{enumerate}
 
-\textbf{Dataset link:} \url{https://github.com/MCG-NJU/SportsMOT}
+allowing direct integration with Zoom-compatible conferencing workflows.
 
-\subsection{Serve Recognition Dataset}
-Serve recognition is trained on a Roboflow dataset with 7,500 annotated images of varying serves in a very diverse set of environments, compared to other datasets. It draws a bounding box over the player serving the ball, which analyzed over many frames, allows for confident detection of serve events.
+\section{Dataset and Data Processing}
 
-\textbf{Dataset link:} \url{https://universe.roboflow.com/sportrackr/volleyball-sufng/dataset/1}
+\subsection{Primary Dataset}
 
-\subsection{Action Classification Dataset}
-Action classification uses a custom-labeled dataset with 14,000 annotations of 5 volleyball actions - block, defense, serve, set, and spike (serve is ignored post-training). In each image, a bounding box is drawn around the player performing the action, and there could be multiple actions occurring in a single frame. My main strategy in finding the right dataset for this task was to strike a balance between quantity and quality (variation). Although having a purely mass-labeled dataset would sometimes be ideal, the variation found in these auto-labeled datasets were often not representative of the whole domain of different environments, in this case, the players and their actions.
+The project is trained on the \textbf{BEAT multimodal talking dataset} \cite{liu2022beat}, using locally downloaded paired audio and blendshape annotations. In the current experiments, the active split comes from the English subset (\texttt{beat\_english\_v0.2.1}) available under the repository data directory.
 
-\textbf{Dataset link:} \url{https://universe.roboflow.com/actions-players/volleyball-actions/dataset/3}
+\subsection{Preprocessing Pipeline}
 
-\section{Validation Methods}
+Each sample is formed from a side-by-side \texttt{.wav} and \texttt{.json} pair:
 
-\subsection{Component-Level Validation}
+\begin{enumerate}
+    \item Audio is loaded as mono and resampled to 16 kHz.
+    \item Per-sample clip duration is capped (10 seconds in the current notebook setup) for stable training throughput.
+    \item JSON frame weights are parsed and normalized to a fixed 52-dimensional target vector per frame (pad/truncate when needed).
+    \item Targets are aligned to the effective audio duration using 60 FPS frame logic.
+    \item Variable-length sequences are padded per batch with explicit length tensors for masked losses.
+\end{enumerate}
 
-For segmentation tasks, I used Intersection over Union (IoU) - the industry gold-standard for overlap between predicted and ground truth masks. This metric is calculated by dividing the area of overlap between the predicted and ground truth masks by the area of their union, with 1 indicating perfect overlap and 0 with no overlap. For the court estimator module, I used the Euclidean distance between predicted and ground truth 4-corner coordinates to measure accuracy, since the original court line dataset already gave precise corner locations.
+The training pipeline currently uses an 80/20 train/validation split with a fixed random seed for reproducibility.
 
-For ball detection tasks and anything that worked with bounding boxes, the main metric I used to validate the performance of my models is mean Average Precision (mAP), the go-to metric for object detection. There are two main variants of mAP I used: mAP50, which counts a detection as correct if the IoU is above 0.5 (did we get it correct), and mAP50-95, which in summary, determines how much the detection is correct by.
+\section{Validation Strategy and Experiments}
 
-Continuous models like serve recognition and action classification leaned on precision, recall, and confusion matrices - quick, clear, and to the point. This provided a very interpretable view of how well the models were performing on each class, and where they were making mistakes.
+\subsection{Model-Level Validation}
 
-For player identification to validate the ReID model, I utilized cosine similarity to validate my ReID model in matching detected players across frames. A higher cosine similarity between feature embeddings means a higher likelihood that the two embeddings belong to the same player.
+Validation is performed every epoch with sequence masking to avoid padding bias. The primary tracked metrics are:
 
+\begin{enumerate}
+    \item \textbf{Masked MSE}: main optimization-aligned error metric.
+    \item \textbf{Masked MAE}: interpretable average absolute coefficient error.
+    \item \textbf{Threshold Accuracy}: fraction of coefficients within an absolute error threshold (default 0.05).
+\end{enumerate}
+
+TensorBoard logging is used to track train/validation loss, accuracy, MAE, learning rate, and trial summaries. Best checkpoints are selected by validation loss with early stopping patience and minimum-delta logic.
+
+\subsection{Hyperparameter Experiments}
+
+The notebook supports structured trial sweeps over learning rate, hidden dimension, Transformer depth/heads, dropout, batch size, and epoch count. Each trial writes isolated logs and checkpoints, enabling direct comparison of convergence behavior and best-epoch performance.
 
 \subsection{System-Level Validation}
 
-Beyond the mentioned component metrics, everything else is meaningless if the system-level performance is lacking. I wanted to see how well my application could  fare on raw unedited footage from the Carleton University volleyball team, which was the original motivation for the project. Compared to my curated datasets and sample videos that represent ideal environments, this real footage was much more chaotic and imperfect, including elements like messy gym court lines, inconsistent lighting, and noise from teammates, referees, coaches, spectators, and other courts. Whether Tobio could still deliver accurate and actionable insights in future-customers' scenarios, is the most meaningful validation of all.
+Beyond offline metrics, the system is validated in \textit{end-to-end live runs}:
+
+\begin{enumerate}
+    \item microphone speech $\rightarrow$ transcription,
+    \item English-to-French translation,
+    \item streamed French synthesis,
+    \item synchronized avatar mouth motion and Zoom bridge output.
+\end{enumerate}
+
+Operational logs (for example first audio chunk latency, per-epoch ETA, and module-level status) are used to assess practical real-time behavior and robustness under device reconnect or stream interruptions.
