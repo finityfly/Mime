@@ -3,75 +3,10 @@
 \section{Quantitative Data}
 All of the following results can be found in the results folder of the project GitHub repository, if too small to view here: \url{https://github.com/FinityFly/tobio/tree/main/results}.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=1\textwidth]{../../results/yolov11-court-seg-v2/results.png}
-    \caption{Sample Segmentation (Court) Results Summary}
-\end{figure}
-\begin{table}[H]
-    \centering
-    \begin{tabular}{lcccccc}
-        \textbf{Model} & \textbf{Precision} & \textbf{Recall} & \textbf{mAP50} & \textbf{mAP50-95} & \textbf{Epochs} & \textbf{Time (s)} \\
-        \hline
-        Court Segmentation & 0.93903 & 0.95795 & 0.76268 & 0.59969 & 19 & 1931.87 \\
-        Ball Detection & 0.80005 & 0.52477 & 0.60875 & 0.32619 & 19 & 2774.63 \\
-        Player Tracking & 0.91767 & 0.88080 & 0.94220 & 0.61205 & 19 & 509.15 \\
-        Serve Recognition & 0.82289 & 0.81146 & 0.85112 & 0.42575 & 19 & 962.64 \\
-        Event Detection & 0.82577 & 0.52417 & 0.61094 & 0.35737 & 19 & 5841.17 \\
-    \end{tabular}
-    \caption{Model Performance Summary}
-\end{table}
+
 %======================================================================
 
 % This section summarizes the work you did and puts it in the context of how you contributed to the employer's overall goals and mission. You must also describe how your work relates to what you learned in your university courses, not just in terms of the course material but also in terms of preparation for working in a professional setting. You should also discuss how your work experience ties in with your long-range career goals.
 
 \section{Qualitative Results}
 
-\captionsetup[subfigure]{skip=1pt}
-\setlength{\abovecaptionskip}{2pt}
-\setlength{\belowcaptionskip}{2pt}
-\begin{figure}[H]
-    \centering
-    % Court Segmentation
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../../results/yolov11-court-seg-v2/val_batch0_labels.jpg}
-        \caption{Court Val Labels}
-    \end{subfigure}\hspace{0.02\textwidth}
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../../results/yolov11-court-seg-v2/val_batch0_pred.jpg}
-        \caption{Court Val Prediction}
-    \end{subfigure}\\[2pt]
-    % Ball Detection
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../../results/yolov11-volleyball-v2/train_batch1.jpg}
-        \caption{Ball Train Batch 1}
-    \end{subfigure}\hspace{0.02\textwidth}
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../../results/yolov11-volleyball-v2/train_batch2.jpg}
-        \caption{Ball Train Batch 2}
-    \end{subfigure}
-    \caption{Qualitative results: YOLOv11 Court Segmentation and Ball Detection.}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    % Player Tracking
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../../results/yolov11-player-fixed/val_batch0_labels.jpg}
-        \caption{Player Val Labels}
-    \end{subfigure}\hspace{0.02\textwidth}
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../../results/yolov11-player-fixed/val_batch0_pred.jpg}
-        \caption{Player Val Prediction}
-    \end{subfigure}\\[2pt]
-    % Event Detection
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../../results/yolov11-actions-v2/val_batch0_labels.jpg}
-        \caption{Event Val Labels}
-    \end{subfigure}\hspace{0.02\textwidth}
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{../../results/yolov11-actions-v2/val_batch0_pred.jpg}
-        \caption{Event Val Prediction}
-    \end{subfigure}
-    \caption{Qualitative results: YOLOv11 Player Tracking and Event Detection.}
-\end{figure}
