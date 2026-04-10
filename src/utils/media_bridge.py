@@ -352,7 +352,7 @@ class ZoomMediaBridge:
             arr *= 0.98 / peak
 
         # Soft limiter to reduce clipping artifacts during loud TTS bursts.
-        drive = 1.35
+        drive = 1.2
         arr = np.tanh(arr * drive) / np.tanh(drive)
         arr = np.clip(arr, -1.0, 1.0).astype(np.float32, copy=False)
 

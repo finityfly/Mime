@@ -1,0 +1,31 @@
+%======================================================================
+\chapter{Introduction}
+%======================================================================
+
+Performance analysis in high-performance sports is expensive. Professional teams hire dedicated analysts, buy overpriced athletic monitoring gear, and subscribe to private analytical software services, just for the slightest edge. Meanwhile, amateur and collegiate teams are left with their own endeavers, spending countless hours watching game footage that could be better spent practicing, strategizing, or resting. Performance analysis in competitive sports has always been done manually, but as of recently, artifical intelligence has caught up to the point where it can meaningfully make a different in thsi space. This report presents Tobio, an AI-powered platform that bridges this divide by transforming volleyball game footage into comprehensive analytical data through computer vision and machine learning.
+
+\section{Background}
+
+Countless hours of valuable game footage is often wasted by not analyzing it to its full potential. The problem is not a lack of data nor the lack of importance; it is rather a lack of time. Coaches and athletes of all competitive activities know that reviewing yourself is one of the most effective paths to improvement since you're able to recognize your mistakes and strengths from an outside angle. However, the reality is harsh: a single tournament over the span of a weekend generates more video than anyone has time to analyze. For teams operating without the abundance of resources of an fully-fledged organization, this wealth of information becomes a burden rather than an asset.
+
+Volleyball especially presents a particularly compelling case of this challenge, since there's so many things happening at once on the court, that it's hard to catch everything in real-time by pen and paper, and even harder to review it later. This painfully slow process had me thinking whether it was possible to fully automate the mechanical aspects of video analysis, let alone partially automating the process would make a world of difference.
+
+\section{Motivation and Objectives}
+
+This project was directly motivated from my love for volleyball and my experience with post-game video analysis as a member of the Carleton University volleyball team. There's at least a terabyte of game footage recorded, uploaded, and ultimately forgotten about; a piece of gold that no one has the time to mine.
+
+Tobio was proposed to solve this issue I wanted to tackle since year one. Tobio aims to completely automate the mechanical aspects of video analysis, while still allowing for human judgment to take the lead in more complicated decision-making processes. The platform is designed around three core objectives:
+
+\begin{enumerate}
+    \item Generate 3D spatial tracking data of the ball and each player for each frame of gameplay, given a single point of view.
+    \item Event detection and classification to identify volleyball "actions", including but not limited to serves, spikes, blocks, and defenses.
+    \item Data synthesis into effective statistics sheets and visualizations that reveal real practical insights.
+\end{enumerate}
+
+\section{Related Prior Work}
+
+I have several relevant prior experiences that helped lay the foundation for this project. Most notably is \href{https://github.com/Whiplash-Robotics/Whiplash-Aimbot}{Whiplash}, a fun attempt to build a physical device capable of physically moving a computer mouse to aim and click on targets in video games with superhuman speed and accuracy. Through leading the computer vision component for Whiplash, I heavily experimented with different technologies and approaches to solve an issue that, at its core, is related to sports analysis. Much like tracking objects in a video game environment via a first-person perspective in shooters and mapping this CV data to a movement on the mouse, sports analysis also requires tracking moving objects in real-time with minimal latency. An important takeaway from this project was that cameras don't give a perfect view of a 2D plane; different camera setups have differing focal lengths, angles, and distortions that need to be accounted for equally as important as the CV model itself.
+
+Another experience that helped me prepare was writing my \href{https://github.com/FinityFly/EELatex/blob/main/main.pdf}{research paper} on speech recognition with deep NNs. This project, which ultimately marked the starting point of my interest in machine learning in high school, first had me familiar with popular machine learning websites such as Tensorflow and Torch. The main takeaway from this project was learning about connectionist temporal classification (CTC) loss, a loss function that tackles many-to-many sequence problems where the alignment between input and output sequences is unknown. This concept is particularly relevant to sports analysis, where the continuous nature of volleyball "actions" makes it challenging to obtain the exact timing and duration of each event.
+
+Finally, my internship at Trend Micro as a software engineering intern on the infrastructure team taught me the essentials to managing an AWS cloud environment, which I leveraged heavily for hosting the Tobio web application and performance-reliant backend services, as well as storing the memory-expensive models on cloud.

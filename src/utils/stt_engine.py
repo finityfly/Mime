@@ -8,23 +8,32 @@ import numpy as np
 from groq import Groq
 
 class STTProcessor:
-    def __init__(self, output_queue, log_callback):
+    def __init__(self, output_queue, log_callback, input_device_index: int | None = None):
         self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.output_queue = output_queue
         self.log = log_callback
         self.is_running = True
-        
+
         self.CHUNK = 1024
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 16000
-        
-        # calibration
-        self.SILENCE_THRESHOLD = 200
-        self.MAX_SILENT_CHUNKS = 8  # (16000/1024) * 1.2 seconds = ~18 chunks
+
+        # calibration: raised threshold to avoid keyboard/typing noise being
+        # detected as speech. MIN_SPEECH_CHUNKS prevents very short captures
+        # (like clicks) from being sent to the recognizer.
+        self.SILENCE_THRESHOLD = 800
+        self.MAX_SILENT_CHUNKS = 12  # ~12 * 1024/16000 = ~0.77s of silence to finalize
+        self.MIN_SPEECH_CHUNKS = 3   # ignore utterances shorter than ~0.19s
 
         self.p = pyaudio.PyAudio()
+        self.input_device_index = input_device_index
+        if self.input_device_index is not None:
+            self.log(f"[STT] Using audio input device index: {self.input_device_index}")
         self.audio_queue = queue.Queue()
+        self._stream = None
+        self._stream_thread = None
+        self._process_thread = None
 
     def _calculate_rms(self, frame):
         data = np.frombuffer(frame, dtype=np.int16)
@@ -34,13 +43,17 @@ class STTProcessor:
 
     def _stream_audio(self):
         try:
-            stream = self.p.open(
-                format=self.FORMAT, 
+            open_kwargs = dict(
+                format=self.FORMAT,
                 channels=self.CHANNELS,
-                rate=self.RATE, 
-                input=True, 
-                frames_per_buffer=self.CHUNK
+                rate=self.RATE,
+                input=True,
+                frames_per_buffer=self.CHUNK,
             )
+            if self.input_device_index is not None:
+                open_kwargs["input_device_index"] = self.input_device_index
+
+            self._stream = self.p.open(**open_kwargs)
             
             self.log("[STT] Mic active. Listening for full thoughts...")
             
@@ -49,7 +62,7 @@ class STTProcessor:
             recording_started = False
 
             while self.is_running:
-                data = stream.read(self.CHUNK, exception_on_overflow=False)
+                data = self._stream.read(self.CHUNK, exception_on_overflow=False)
                 rms = self._calculate_rms(data)
                 
                 if rms > self.SILENCE_THRESHOLD:
@@ -64,14 +77,25 @@ class STTProcessor:
                         silent_chunks_count += 1
                         
                         if silent_chunks_count > self.MAX_SILENT_CHUNKS:
-                            # self.log(f"[STT-DEBUG] Thought finalized ({len(frames)} chunks)")
-                            self.audio_queue.put(frames)
+                            # finalize only if speech was long enough
+                            if len(frames) >= self.MIN_SPEECH_CHUNKS:
+                                self.audio_queue.put(frames)
+                            else:
+                                pass
                             frames = []
                             silent_chunks_count = 0
                             recording_started = False
         
         except Exception as e:
             self.log(f"[STT] Hardware Error: {e}")
+        finally:
+            try:
+                if self._stream is not None:
+                    self._stream.stop_stream()
+                    self._stream.close()
+            except Exception:
+                pass
+            self._stream = None
 
     def _process_audio(self):
         while self.is_running:
@@ -104,6 +128,34 @@ class STTProcessor:
             except Exception as e:
                 self.log(f"[STT] API Error: {e}")
 
+    def stop(self, timeout: float = 1.0) -> None:
+        """Gracefully stop the STT processor and join threads."""
+        self.is_running = False
+        # Wake processing thread if blocked
+        try:
+            self.audio_queue.put_nowait([])
+        except Exception:
+            pass
+
+        if self._stream_thread is not None:
+            self._stream_thread.join(timeout=timeout)
+            self._stream_thread = None
+        if self._process_thread is not None:
+            self._process_thread.join(timeout=timeout)
+            self._process_thread = None
+        try:
+            if self._stream is not None:
+                self._stream.stop_stream()
+                self._stream.close()
+        except Exception:
+            pass
+        try:
+            self.p.terminate()
+        except Exception:
+            pass
+
     def start(self):
-        threading.Thread(target=self._stream_audio, daemon=True).start()
-        threading.Thread(target=self._process_audio, daemon=True).start()
+        self._stream_thread = threading.Thread(target=self._stream_audio, daemon=True)
+        self._process_thread = threading.Thread(target=self._process_audio, daemon=True)
+        self._stream_thread.start()
+        self._process_thread.start()

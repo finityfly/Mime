@@ -1,0 +1,92 @@
+% T I T L E   P A G E
+% -------------------
+% Last updated August 24, 2023, by IST-Client Services
+% The title page is counted as page `i' but we need to suppress the
+% page number. Also, we don't want any headers or footers.
+\pagestyle{empty}
+\pagenumbering{roman}
+
+% The contents of the title page are specified in the "titlepage"
+% environment.
+\begin{titlepage}
+        \begin{center}
+        \vspace*{3.0cm}
+
+        \Huge
+        {\bf aspuirguser: Your Game, Quantified \\}
+
+        \vspace*{0.5cm}
+
+        \Large
+        COMP3106 Project Report \\
+
+        \vspace*{1.5cm}
+
+        \normalsize
+        Fall 2025 - December 5, 2025 \\
+        Carleton University \\
+
+        \vspace*{1.0cm}
+
+        % \Large
+        \textbf{Group 68} - Daniel Lu \\
+
+        \normalsize
+        101304181\\
+        daniellu@cmail.carleton.ca \\
+
+        \vspace*{1.0cm}
+
+        \normalsize
+        Instructor: Matthew Holden \\
+
+        \end{center}
+\end{titlepage}
+
+% The rest of the front pages should contain no headers and be numbered using Roman numerals starting with `ii'
+\pagestyle{plain}
+\setcounter{page}{2}
+
+\cleardoublepage % Ends the current page and causes all figures and tables that have so far appeared in the input to be printed.
+% In a two-sided printing style, it also makes the next page a right-hand (odd-numbered) page, producing a blank page if necessary.
+\phantomsection    % allows hyperref to link to the correct page
+
+% E X E C U T I V E  S U M M A R Y
+% ---------------
+% \renewcommand{\baselinestretch}{2}\selectfont
+% \addcontentsline{toc}{chapter}{Executive Summary}
+% \begin{center}\textbf{Executive Summary}\end{center}
+
+% This report briefly captures my four-month journey as a Software Developer Intern at Trend Micro - an experience that really opened my eyes to enterprise cybersecurity. I had the unique opportunity to work with two distinct teams that focused on vastly different parts of the field.
+
+% Most of my time was spent with the Cyber Risk Exposure Management (CREM) \& BigTable team, specifically on their infrastructure subteam. I was responsible for building CI/CD pipelines for internal SDKs and developing database deployment systems that handle customer data. I also contributed to the Digital Twin project, which creates virtual representations of physical assets to improve security posture by identifying vulnerabilities before they become problems\cite{website:trendmicrodigitaltwin}.
+
+% Under the mentorship of Walker Liu, Kuanhung Chen, and Shannon Cox, I built a strong foundation in security-focused software engineering and infrastructure design that I will carry forward with me as I jump from company to company. I'm forever grateful for all of the support and advice they gave me throughout this summer.
+
+% \cleardoublepage
+% \phantomsection    % allows hyperref to link to the correct page
+
+% A C K N O W L E D G E M E N T S
+% -------------------------------
+% \addcontentsline{toc}{chapter}{Acknowledgements}
+% \vspace*{\fill}
+% \vspace*{-3cm}
+% \begin{center}\textbf{Acknowledgements}\end{center}
+% I would like to thank my manager, Leo Zhang, and my mentors, Walker Liu, Kuanhung Chen, and Shannon Cox, for their valuable guidance and continued support throughout my work term. I would also like to thank the Vision One ASRM Core Team for their warm welcome and support during my short stay at Trend Micro. Lastly, I would like to thank all of the Trend Micro Ottawa campus employees, including the other interns, for always being amazing and friendly people. Whether it's eating lunch together, collaborating on projects, or hanging out on the volleyball court, you all create such a hospitable work environment that can't be beaten.
+% \vspace*{\fill}
+
+% \cleardoublepage
+% \phantomsection    % allows hyperref to link to the correct page
+
+% T A B L E   O F   C O N T E N T S
+% ---------------------------------
+\renewcommand{\baselinestretch}{1}\selectfont
+\renewcommand\contentsname{Table of Contents}
+\tableofcontents
+\cleardoublepage
+\phantomsection    % allows hyperref to link to the correct page
+
+
+% Change page numbering back to Arabic numerals
+\pagenumbering{arabic}
+\setcounter{page}{1}

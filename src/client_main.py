@@ -9,15 +9,19 @@ import cv2
 import numpy as np
 from dotenv import load_dotenv
 from huggingface_hub import login
+import pyaudio
 
 from utils.media_bridge import ThreadedZoomBridge, ZoomMediaConfig
+from utils.video_client import VideoClient
+from utils.inference_engine_fast import InferenceEngineFast
+from utils.arkit_renderer import ARKitRenderer
 from utils.mt_engine import MTProcessor
 from utils.stt_engine import STTProcessor
 from utils.tts_engine import TTSProcessor
 
 
 class MimeClient:
-    """Unified client launcher for STT -> MT -> TTS and optional Zoom sinks."""
+    """Unified client launcher for STT -> MT -> TTS and ARKit Avatar Zoom sinks."""
 
     def __init__(self, args: argparse.Namespace):
         from queue import Queue
@@ -30,51 +34,32 @@ class MimeClient:
         self.mt: MTProcessor | None = None
         self.stt: STTProcessor | None = None
 
+        self.inference_engine: InferenceEngine | None = None
+        self.renderer: ARKitRenderer | None = None
         self.bridge: ThreadedZoomBridge | None = None
-        self._frame_thread: Thread | None = None
-        self._frame_stop = Event()
 
     def logger(self, message: str) -> None:
         timestamp = time.strftime("%H:%M:%S")
         print(f"[{timestamp}] {message}")
 
-    def _make_startup_frame(self, width: int, height: int) -> np.ndarray:
-        frame = np.zeros((height, width, 3), dtype=np.uint8)
-        cv2.rectangle(frame, (0, 0), (width, height), (18, 18, 18), thickness=-1)
-        cv2.putText(frame, "MIME CLIENT ONLINE", (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 220, 120), 3)
-        cv2.putText(
-            frame,
-            "Waiting for MicABSMonitor frames...",
-            (40, 130),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (220, 220, 220),
-            2,
-        )
-        cv2.putText(
-            frame,
-            "Bridge accepts push_frame(BGR) + push_audio(Int16/Float32/bytes)",
-            (40, 170),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (200, 200, 200),
-            2,
-        )
-        return frame
-
-    def _bridge_frame_keepalive_loop(self) -> None:
-        assert self.bridge is not None
-        interval = 1.0 / max(1, int(self.args.zoom_fps))
-        base = self._make_startup_frame(self.args.zoom_width, self.args.zoom_height)
-
-        while not self._frame_stop.is_set():
-            frame = base.copy()
-            now = time.strftime("%H:%M:%S")
-            cv2.putText(frame, f"{now}", (40, self.args.zoom_height - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 220, 220), 2)
-            self.bridge.push_frame(frame)
-            self._frame_stop.wait(interval)
-
     def _start_zoom_bridge(self) -> None:
+        """Initializes the visual and audio bridge for Zoom."""
+        # 1. Start the Inference Engine (The AI logic)
+        self.inference_engine = InferenceEngineFast(
+            model_path=self.args.abs_model,
+            log_callback=self.logger,
+            sample_rate=self.args.audio_rate,
+        )
+
+        # 2. Start the Renderer (The 3D visualization)
+        self.renderer = ARKitRenderer(
+            glb_path=self.args.avatar_model,
+            engine=self.inference_engine,
+            width=self.args.zoom_width,
+            height=self.args.zoom_height
+        )
+
+        # 3. Setup the Media Bridge
         self.bridge = ThreadedZoomBridge(
             config=ZoomMediaConfig(
                 width=self.args.zoom_width,
@@ -88,25 +73,83 @@ class MimeClient:
             ),
             log_callback=self.logger,
         )
+
+        # 4. Setup VideoClient in 'abs' mode to pull from the Renderer
+        self._video_client = VideoClient(
+            width=self.args.zoom_width, 
+            height=self.args.zoom_height, 
+            fps=self.args.zoom_fps, 
+            log=self.logger
+        )
+
+        if self.args.mode == "avatar":
+            self.logger("[Client] Setting VideoClient to ARKit Avatar mode.")
+            self._video_client.set_mode("abs")
+            self._video_client.set_renderer(self.renderer.render_frame)
+        elif self.args.forward_webcam:
+            self._video_client.set_mode("webcam")
+            self._video_client.set_webcam_index(self.args.webcam_index)
+        else:
+            self._video_client.set_mode("text")
+            self._video_client.set_text("MIME CLIENT ONLINE\nWaiting for Audio...")
+
+        try:
+            self.bridge.set_video_source(self._video_client)
+        except Exception as e:
+            self.logger(f"[Client] Failed to set VideoClient: {e}")
+
         self.bridge.start()
-
-        self._frame_stop.clear()
-        self._frame_thread = Thread(target=self._bridge_frame_keepalive_loop, daemon=True)
-        self._frame_thread.start()
-
         self.logger("[Client] Zoom bridge enabled.")
 
     def start(self) -> None:
         self.logger("Initializing Mime client...")
 
-        if self.args.enable_zoom_bridge:
-            self._start_zoom_bridge()
-            self.logger("[Client] In Zoom, select virtual camera + CABLE Output mic.")
+        def choose_audio_input_device(logger) -> int | None:
+            pa = pyaudio.PyAudio()
+            devices = []
+            for i in range(pa.get_device_count()):
+                info = pa.get_device_info_by_index(i)
+                if int(info.get("maxInputChannels", 0)) > 0:
+                    devices.append((i, info.get("name", f"Device {i}")))
 
-        audio_callback = self.bridge.push_audio if self.bridge is not None else None
-        self.tts = TTSProcessor(self.mt_to_tts, self.logger, audio_callback=audio_callback)
+            logger("[Client] Available audio input devices:")
+            for idx, name in devices:
+                logger(f"  {idx}: {name}")
+
+            if self.args.audio_input_index is not None:
+                return self.args.audio_input_index
+
+            try:
+                import sys as _sys
+                if not _sys.stdin.isatty():
+                    return None
+                choice = input("Select audio input device index (blank for default): ").strip()
+                return int(choice) if choice else None
+            except Exception:
+                return None
+
+        selected_input_index = choose_audio_input_device(self.logger)
+
+        if self.args.debug_audio:
+            self.logger("[Client] Debug audio mode enabled: Zoom bridge disabled, TTS routed to local speakers.")
+            # No callback means TTSProcessor uses local PyAudio playback.
+            self.tts = TTSProcessor(self.mt_to_tts, self.logger)
+        else:
+            self._start_zoom_bridge()
+
+            # DUAL AUDIO SINK: Redirect TTS output to both Zoom and the Animation Engine
+            def dual_audio_callback(audio_bytes: bytes):
+                # 1. Send to Zoom Virtual Cable
+                if self.bridge:
+                    self.bridge.push_audio(audio_bytes)
+                # 2. Send to Inference Engine for lip-sync
+                if self.inference_engine:
+                    self.inference_engine.process_audio_chunk(audio_bytes)
+
+            self.tts = TTSProcessor(self.mt_to_tts, self.logger, audio_callback=dual_audio_callback)
+
         self.mt = MTProcessor(self.stt_to_mt, self.mt_to_tts, self.logger)
-        self.stt = STTProcessor(self.stt_to_mt, self.logger)
+        self.stt = STTProcessor(self.stt_to_mt, self.logger, input_device_index=selected_input_index)
 
         self.tts.start()
         self.mt.start()
@@ -123,50 +166,55 @@ class MimeClient:
             self.shutdown()
 
     def shutdown(self) -> None:
-        self._frame_stop.set()
-        if self._frame_thread is not None:
-            self._frame_thread.join(timeout=1.0)
-            self._frame_thread = None
+        self.logger("[Client] Shutting down modules...")
+        for module in [self.stt, self.mt, self.tts]:
+            if module:
+                try:
+                    module.stop()
+                except Exception:
+                    pass
 
-        if self.bridge is not None:
+        if getattr(self, "_video_client", None):
+            self._video_client.close()
+
+        if self.bridge:
             self.bridge.stop()
-            self.bridge = None
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Launch Mime client services.")
-    parser.add_argument(
-        "--enable-zoom-bridge",
-        action="store_true",
-        help="Start ThreadedZoomBridge (virtual camera + virtual cable audio sink).",
-    )
-    parser.add_argument("--zoom-width", type=int, default=1280, help="Virtual camera width.")
-    parser.add_argument("--zoom-height", type=int, default=720, help="Virtual camera height.")
-    parser.add_argument("--zoom-fps", type=int, default=30, help="Virtual camera FPS.")
-    parser.add_argument("--audio-rate", type=int, default=48000, help="Bridge audio sample rate.")
-    parser.add_argument("--audio-buffer", type=int, default=960, help="Bridge audio frames per buffer.")
-    parser.add_argument(
-        "--audio-device-name",
-        type=str,
-        default=None,
-        help="Optional output device name substring override (for example: CABLE Input).",
-    )
+    # Core Bridge Settings
+    parser.add_argument("--debug-audio", action="store_true", help="Enable debug audio output.")
+    parser.add_argument("--mode", type=str, default="avatar", choices=["avatar", "webcam", "text"])
+    
+    # Model Paths
+    parser.add_argument("--abs-model", type=str, default="models/best_fast.pt", help="Path to .pt model.")
+    parser.add_argument("--avatar-model", type=str, default="assets/avatar.glb", help="Path to .glb rig.")
+
+    # Video Settings
+    parser.add_argument("--zoom-width", type=int, default=1280)
+    parser.add_argument("--zoom-height", type=int, default=720)
+    parser.add_argument("--zoom-fps", type=int, default=30)
+
+    # Audio Settings
+    parser.add_argument("--audio-rate", type=int, default=48000)
+    parser.add_argument("--audio-buffer", type=int, default=960)
+    parser.add_argument("--audio-device-name", type=str, default=None)
+    parser.add_argument("--audio-input-index", type=int, default=None)
+
+    # Legacy Webcam Support
+    parser.add_argument("--forward-webcam", action="store_true", default=False)
+    parser.add_argument("--webcam-index", type=int, default=0)
+
     return parser.parse_args()
 
-
-def configure_env() -> None:
-    load_dotenv()
-    hf_token = os.getenv("HF_TOKEN")
-    if hf_token:
-        login(token=hf_token)
-
-
 def main() -> None:
-    configure_env()
+    load_dotenv()
+    if os.getenv("HF_TOKEN"):
+        login(token=os.getenv("HF_TOKEN"))
+    
     args = parse_args()
     client = MimeClient(args)
     client.start()
-
 
 if __name__ == "__main__":
     main()

@@ -80,7 +80,7 @@ Create a `.env` file in the root directory and populate it with your API credent
 GROQ_API_KEY=gsk_your_key_here
 
 # Inworld (TTS)
-INWORLD_AUTH_SIGNATURE=aHd......g==  # Base64 field
+INWORLD_API_KEY=aHd......g==  # Use the Basic (Base64) field
 
 # Hugging Face (Model Access)
 HF_TOKEN=hf_your_token_here

@@ -1,0 +1,28 @@
+%======================================================================
+\chapter{Discussion}
+%======================================================================
+
+\section{Limitations and Challenges}
+Tobio's development came with its fair share of challenges. The most significant was achieving an accurate court segmentation system, finding a method for consistent player identification, and reliable event detection.
+
+While the player tracking model is good at finding players (mAP50 of 0.94), the bounding boxes aren't always precise (mAP50-95 of 0.61) and the model often swapped player IDs. In the chaos of a real game, similar-looking players sometimes led to devastating identity switches, and would have to be manually corrected in post.
+
+Moreover, the models are also only as good as their training data. The court segmentation dataset, for example, was fairly clean and didn't include the messy, overlapping lines of multi-use gyms where many amateur teams play. This means performance could dip in those more common, imperfect environments.
+
+In addition, compiling the 3D spatial coordinates of the ball was one of the biggest initial constraints, since our objective was to use a single camera viewpoint. Though exact XYZ could be obtained, the depth information was unreliabile without more powerful models and more research. 
+
+The most difficult challenge had to be event detection. Volleyball actions are continuous and fluid, making it hard to define clear start and end points for each event, especially in a sport as complicated and fast-paced as volleyball. The model often confused similar actions, like spikes and serves, leading to misclassifications that would need manual review. The overall system I developed was only a prototype and had some questionable logic and reliability issues due to it's complexity, but I know that a well-polished system is definitely within arms reach with more time and resources.
+
+\section{Directions for Future Work}
+
+I definitely see a lot of potential in improving Tobio further, both in terms of turning it into a fully-polished product by improving the technical components, as well as expanding into other sports and use-cases. First of all, I'd like to improve the recall of the most important subcomponents: ball tracking, player recognition, and event detection. These form the backbone of what's possible with Tobio, so improving their reliability is a priority. Additionally, I'd like to improve my application's practicality with real competitive teams' use-cases in mind. This includes building more meaningful visualizations, more powerful and flexible user interface that allows for each teams' customizations, and curated reports for both coaches and players.
+
+Although, other more popular sports already have implementations of similar systems, these popular sports often have paid subscriptions to such services and the non-popular sports don't receive enough attention for innovation. Volleyball is just the start line, and I'd like to examine what possiblities exist in other domains.
+
+\section{Implications and Impact}
+
+I believe that Tobio has the potential to democratize sports performance analysis, since one of my key morals is making it accessible to anyone, including teams that lack the resources of professional organizations. Through automating the entire process of video analysis, teams can save opportunity costs on tedious manual data collection and focus more on the other significant aspects one would much rather be doing.
+
+\section{Conclusions}
+
+In conclusion, this project has successfully developed a proof-of-concept AI-powered platform for volleyball video analysis. While there are still many shortcomings due to the limited scope and time constraints of this project, Tobio's end-to-end system is still able to show a glimpse into what is possible when combining computer vision, machine learning, and sports analytics. With proper development and time, Tobio has the potential to become a valuable tool for amateur and collegiate volleyball teams, all while paving the way for similar systems in other sports.

@@ -1,0 +1,75 @@
+%======================================================================
+\chapter{Methods}
+%======================================================================
+
+\section{Methods from Artificial Intelligence}
+
+Tobio leverages several methods from the computer vision and machine learning domains to achieve its aforementioned objectives. These methods can separated into four main stages: court boundary masking and segmentation, ball trajectory tracking, player recognition and tracking, and an events' system that detects volleyball-specific actions and works with the other components to ultimately generate meaningful statistics. I will be going through each of these stages in detail.
+
+\subsection{Court Boundary Detection and Segmentation}
+
+The initial court boundary masking was handled by a YOLOv11 segmentation model trained on a public dataset sourced from Roboflow. The model was trained to output a cloud of points that attempted to trace the correct court boundaries given a head-on view of a volleyball court (app/backend/court\_tracker.py). Given this points cloud, a modifed convex hull algorithm was applied to estimate the position of the four corners of the court (app/backend/court\_estimator.py), even if the corners were out of frame.
+
+It's important to note that several of the models I used for this project were trained using the Ultralytics YOLOv11 framework, which was a choice made mostly for my familiarity, its ease of use, and its strong performance and reputation in computer vision. Had I was given one more 4-month term, I would have experimented with other state-of-the-art detection and segmentation models, or even crafted my own custom architectures tailored specifically for volleyball.
+
+\subsection{Ball Trajectory Tracking}
+
+I had to face the choice between using a better performing TrackNet model that was able to track high-speed balls with ease, but outputted just raw coordinates without any bounding boxes (since it's for tiny objects), versus a YOLOv11 detection model that outputted bounding boxes but may struggle more with fast-moving balls. I opted for the YOLO model since I figured that the bounding box information was a crucial element to derive the 3D spactial depth of the ball in later stages. I specifically trained YOLOv11's nano model since tracking the ball compared to the capabilities of a modern object detection neural network is a relatively simple task, especially for a large bright volleyball, and I wanted to optimize for inference and training speed (app/backend/ball\_tracker.py).
+
+\subsection{Player Tracking}
+
+Player tracking proved to be one of the most challenging portions of the whole project, since in a volleyball game, 12 players are constantly moving, occluding each other, and changing poses, on both sides of the net. Even to an average human observer, it can be difficult to keep track of each individual player over the course of a long rally, let alone for a computer.
+
+To tackle this, I implemented a multi-object tracking (MOT) system using the more powerful YOLOv11 medium model for player detection, combined with a custom identity re-identification (ReID) model specifically for volleyball players (app/backend/player\_tracker.py). The YOLO model would first output the general unidentified bounding boxes of all players in each frame, and then the ReID model would extract feature vectors from each bounding box and compare them to a gallery of already-seen players to assign consistent IDs over the course of a game (capped to 12 unique IDs). These player embeddings were generated from a ResNet18-based appearance model and were compared across frames using cosine similarity, to try to combat common issues like overlaps and occlusions. Finally, the player IDs were assigned from bottom-to-top via comparing their lower borders with the court midpoint, to give ID priority to the players closer to the camera (they are the most likely to be the team of interest).
+
+\subsection{Event Detection System}
+
+The event detection system is the core of Tobio's analytical systems and therefore it's important that it has as high of an accuracy as possible. Early testing showed that the dedicated serve recognition model (app/backend/serve\_recognizer.py) with YOLOv11n was much more accurate than the general action classifier's serve class, so I merged serve detection into a single stage using the specialized model. Classifying serves are so important to distinguish the start and end of rallies, as well as to determine who won the point, so having a dedicated model made sense. It used temporal logic to group consecutive serve frames and accurately estimate the serve events from spike noise.
+
+All other other volleyball actions (spike, block, defense, set) are detected by the action classifier \\(app/backend/action\_classifier.py), which uses extensive sliding window, trigger threshold, and cooldown logic to group actions and avoid duplicates. Both of these models in event detection timestamp and store events with their frame ranges and bounding boxes, but without identification details, which is where the `links\_actions\_to\_players` module (app/backend/utils.py) comes in. This module cross-references the ball and player tracking data with the event timestamps and intersection over union (IoU) of bounding boxes to assign the most likely player IDs to each event.
+
+\section{Datasets}
+
+Each dataset and task environment in Tobio is obtained intentionally to match the real-world objectives of volleyball analytics as close as possible. Each task is given its most enriched dataset pipeline I could attain to optimize for high-performance in its specific domain.
+
+\subsection{Court Segmentation Dataset}
+For court boundary segmentation, Tobio uses the "Volleyball Court Segmentation" dataset from Roboflow, which contains 10,000 annotated images in COCO segmentation format of volleyball court boundaries in various environments from multiple angles. This dataset provides diverse examples of court appearances, lighting conditions, and occlusions, enabling the model to generalize well to different match settings. However, it's important to note that it notably lacked multi-use gyms where recreational volleyball is often played, which may lead to some shortcomings for analyzing more casual games in such environments.
+
+\textbf{Dataset link:} \url{https://universe.roboflow.com/thesis-r4nbe/volleyball-court-seg/dataset/9}
+
+\subsection{Ball Detection Dataset}
+Ball tracking is trained on a compiled volleyball dataset with nearly 20,000 annotated images, also sourced from Roboflow, with bounding box annotations for volleyballs in a variety of lighting and occlusion conditions. 
+
+\textbf{Dataset link:} \url{https://universe.roboflow.com/volley-pjhnb/volleyball-q7cun/dataset/3}
+
+\subsection{Player Tracking Dataset}
+For player tracking, Tobio leverages the SportsMOT dataset (https://github.com/MCG-NJU/SportsMOT), a large-scale multi-object tracking benchmark specifically designed for sports analytics. SportsMOT provides high-quality annotations for player identities and positions across multiple sports, including volleyball, making it ideal for training robust volleyball player tracking models.
+
+\textbf{Dataset link:} \url{https://github.com/MCG-NJU/SportsMOT}
+
+\subsection{Serve Recognition Dataset}
+Serve recognition is trained on a Roboflow dataset with 7,500 annotated images of varying serves in a very diverse set of environments, compared to other datasets. It draws a bounding box over the player serving the ball, which analyzed over many frames, allows for confident detection of serve events.
+
+\textbf{Dataset link:} \url{https://universe.roboflow.com/sportrackr/volleyball-sufng/dataset/1}
+
+\subsection{Action Classification Dataset}
+Action classification uses a custom-labeled dataset with 14,000 annotations of 5 volleyball actions - block, defense, serve, set, and spike (serve is ignored post-training). In each image, a bounding box is drawn around the player performing the action, and there could be multiple actions occurring in a single frame. My main strategy in finding the right dataset for this task was to strike a balance between quantity and quality (variation). Although having a purely mass-labeled dataset would sometimes be ideal, the variation found in these auto-labeled datasets were often not representative of the whole domain of different environments, in this case, the players and their actions.
+
+\textbf{Dataset link:} \url{https://universe.roboflow.com/actions-players/volleyball-actions/dataset/3}
+
+\section{Validation Methods}
+
+\subsection{Component-Level Validation}
+
+For segmentation tasks, I used Intersection over Union (IoU) - the industry gold-standard for overlap between predicted and ground truth masks. This metric is calculated by dividing the area of overlap between the predicted and ground truth masks by the area of their union, with 1 indicating perfect overlap and 0 with no overlap. For the court estimator module, I used the Euclidean distance between predicted and ground truth 4-corner coordinates to measure accuracy, since the original court line dataset already gave precise corner locations.
+
+For ball detection tasks and anything that worked with bounding boxes, the main metric I used to validate the performance of my models is mean Average Precision (mAP), the go-to metric for object detection. There are two main variants of mAP I used: mAP50, which counts a detection as correct if the IoU is above 0.5 (did we get it correct), and mAP50-95, which in summary, determines how much the detection is correct by.
+
+Continuous models like serve recognition and action classification leaned on precision, recall, and confusion matrices - quick, clear, and to the point. This provided a very interpretable view of how well the models were performing on each class, and where they were making mistakes.
+
+For player identification to validate the ReID model, I utilized cosine similarity to validate my ReID model in matching detected players across frames. A higher cosine similarity between feature embeddings means a higher likelihood that the two embeddings belong to the same player.
+
+
+\subsection{System-Level Validation}
+
+Beyond the mentioned component metrics, everything else is meaningless if the system-level performance is lacking. I wanted to see how well my application could  fare on raw unedited footage from the Carleton University volleyball team, which was the original motivation for the project. Compared to my curated datasets and sample videos that represent ideal environments, this real footage was much more chaotic and imperfect, including elements like messy gym court lines, inconsistent lighting, and noise from teammates, referees, coaches, spectators, and other courts. Whether Tobio could still deliver accurate and actionable insights in future-customers' scenarios, is the most meaningful validation of all.
