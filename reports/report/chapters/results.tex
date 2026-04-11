@@ -17,27 +17,24 @@ A large part of our pipeline in making the model look accurate is reliant on the
 \end{itemize}
 %======================================================================
 
-\begin{figure}[htbp]
-    \centering
-    % First Subfigure (The Line Graphs)
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{loss_curves.png}
-        \caption{Combined training and validation loss curves over time.}
-        \label{fig:loss_curves}
-    \end{subfigure}
-    \hfill
-    % Second Subfigure (The Bar Chart)
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{val_loss_bar.png}
-        \caption{Average validation loss across all hyperparameter configurations.}
-        \label{fig:val_loss_bar}
-    \end{subfigure}
-    \caption{Quantitative results of the hyperparameter grid search identifying the optimal model configuration.}
-    \label{fig:hyperparam_results}
 
+
+% Figure 1: The Line Curves
+\begin{figure}{h}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./../../loss_curves.png}
+    \caption{Combined training and validation loss tracking across all 8 trials.}
+    \label{fig:loss_curves}
 \end{figure}
+
+% Figure 2: The Bar Chart
+\begin{figure}{h}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./../../val_loss_bar.png}
+    \caption{Average validation loss across the hyperparameter search space.}
+    \label{fig:val_loss_bar}
+\end{figure}
+
 
 The performance of each configuration evaluated in the above figures used Mean Squared Error (MSE), allowing us to characterize how well each model generalized to unseen data. The quantitative results revealed several distinct trends across the hyperparameter space. Figure \ref{fig:loss_curves} illustrates the combined 
 training and validation loss curves for all configurations, showing a consistent decrease in loss over time, with a more pronounced drop after the third epoch. This indicates that the model was able to learn effectively from the training data, with diminishing returns as training progressed.
