@@ -4,7 +4,15 @@
 
 \section{Limitations and Challenges}
 
-UNFINISHED
+There were many challenges that we encountered during the development of Mime, leading to several limitations in the current implementation and time taken away from adding certain features and optimizing the whole pipeline.
+The first major challenge was the 3D asset generation and ARKit rigging. It was difficult to find a reliable phone app on iOS that could generate a high-quality 3D head model using the TrueDepth camera,
+while also being free or affordable. We settled on Heges which worked well, but then we still had to deal with the rigging process. To do this we decided to use Blender and some add-ons found online.
+Without any guides or experience with Blender, we spent a large amount of time trying to rig the ARKit blendshapes to the 3D model. After this lengthy process, we were unable to get the model to be
+properly rigged after testing on sites like glTF viewer. This was a major setback as we invested a lot of time and resources into this route, and so we ultimately decided to pivot to a pre-rigged model.
+Although these models are relatively easy to find and work perfectly, they are usually a model of a character or avatar and not a real person, which is not ideal as our goal was to implement this system
+with the idea of realness in mind. There were also challenges with setup and certain libraries that took up a lot of resources and time. Due to the complex setup of the zoom bridge, the need for rendering of 3D
+models, and the fact that we were developing across macOS and Windows, it was difficult to get a consistent setup and be able to spend meaningful time developing and optimizingthe integration process. All of these challenges
+led to a lot of time being taken away from optimizing the models, reducing latency, and overall improving the system, which is reflected in the results and future work sections.
 
 \section{Directions for Future Work}
 
@@ -13,6 +21,8 @@ There are several concrete directions to improve Mime into a production-ready sy
 Second, visual quality can be improved by increasing temporal stability of predicted blendshapes and adding stronger regularization against jitter. Future training should expand beyond the current setup with broader multilingual and speaker-diverse data, stronger validation on held-out speakers, and ablations on architecture and loss terms.
 
 Third, the platform should evolve from a prototype integration into a robust user-facing tool. This includes better device handling, clearer fallback behavior when external APIs fail, configurable quality-latency presets, and simpler setup for common conferencing environments. Together, these changes would substantially improve reliability and usability in day-to-day deployment.
+
+Lastly, the system could integrate the whole setup of the 3D facial scan and rigging process into the pipeline, allowing users to easily create their own personalized avatars without needing to find a pre-rigged model or go through the rigging process themselves. This would make the system more accessible and customizable for users and would more importantly allow for anyone to use a realistic avatar of themselves, which is the ideal use case for this system.
 
 \section{Implications and Impact}
 
