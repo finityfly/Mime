@@ -18,17 +18,17 @@ A large part of our pipeline in making the model look accurate is reliant on the
 %======================================================================
 
 % Figure 1: The Line Curves
-\begin{figure}{h}[htbp]
+\begin{figure}
     \centering
-    \includegraphics[width=0.8\textwidth]{./../../loss_curves.png}
+    \includegraphics[width=0.8\textwidth]{./../../results/loss_curves.png}
     \caption{Combined training and validation loss tracking across all 8 trials.}
     \label{fig:loss_curves}
 \end{figure}
 
 % Figure 2: The Bar Chart
-\begin{figure}{h}[htbp]
+\begin{figure}
     \centering
-    \includegraphics[width=0.8\textwidth]{./../../val_loss_bar.png}
+    \includegraphics[width=0.8\textwidth]{./../../results/val_loss_bar.png}
     \caption{Average validation loss across the hyperparameter search space.}
     \label{fig:val_loss_bar}
 \end{figure}
@@ -48,3 +48,25 @@ The best performing model achieved a peak MSE of 0.0098 on the held-out test set
 
 % Many relevant qualitative indicators are provided, and they provide insight on how well the methods work.
 
+To complement the quantitative evaluation, Figure \ref{fig:overlay_demo_pair} shows two in-call snapshots of the mouth overlay running inside a Zoom interface. The left image captures a more neutral mouth state, while the right image captures a wider smile/open-mouth state. Together, they demonstrate that the ABS-driven overlay responds to changing speech/facial states in real time and remains spatially anchored to the lower face region during live rendering.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{./../../results/demo_neutral.png}
+        \caption{Neutral mouth state in live Zoom feed.}
+        \label{fig:overlay_neutral}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{./../../results/demo_smile.png}
+        \caption{Smile/open-mouth state in live Zoom feed.}
+        \label{fig:overlay_smile}
+    \end{subfigure}
+    \caption{Proof-of-concept mouth overlay behavior within a live conferencing interface.}
+    \label{fig:overlay_demo_pair}
+\end{figure}
+
+These visuals represent a proof-of-concept integration rather than the final visual target. In a production deployment, a personalized 3D head model generated from a LiDAR scan (or equivalent depth capture) would be used so the rendered mouth region is more anatomically aligned and visually cohesive with the user's face geometry. In addition, a gaussian blur would also be applied to the border of the overlay to create a smoother transition between the rendered mouth and the webcam feed.

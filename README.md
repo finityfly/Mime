@@ -51,10 +51,11 @@ mime/
 ### 1. Prerequisites
 * **Python 3.10+**
 * **FFmpeg** (Required for audio processing)
-* **NVIDIA GPU** (Optional, but highly recommended for 4-bit MT inference)
+* **NVIDIA GPU** (Optional, but highly recommended for low-latency inference and training)
+* **Windows OS** (For Zoom bridge)
 
 ### 2. Environment Setup
-We use `uv` for lightning-fast, reproducible dependency management. If you don't have it, install it via `pip install uv`.
+We use `uv` for fast, reproducible dependency management. If you don't have it, install it via `pip install uv`.
 
 ```bash
 # Clone the repository
