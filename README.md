@@ -14,6 +14,40 @@ A high-performance, low-latency pipeline for real-time speech-to-speech translat
 
 ## Getting Started
 
+### Project Structure
+
+```
+mime/
+├── assets/
+│   └── avatar.glb				 # Placeholder for scanned 3D mesh of user's face
+├── data/                        # BEAT dataset (downloaded separately)
+├── logs/                        # TensorBoard trial logs
+├── models/
+│   ├── best_fast.pt             # Best checkpoint — fast inference model
+│   ├── best_slow.pt             # Best checkpoint — slow inference model
+├── notebooks/
+│   └── ABS_train.ipynb          # Lip-sync model training + grid search
+├── reports/					 # Project proposal and final report
+├── resources/
+├── results/
+├── src/
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── arkit_renderer.py    # Offscreen GLB rendering + morph targets
+│   │   ├── inference_engine_fast.py   # Sliding-window real-time inference
+│   │   ├── inference_engine_slow.py   # Higher-accuracy inference path
+│   │   ├── media_bridge.py      # Virtual camera + virtual cable transport
+│   │   ├── mt_engine.py         # LLaMA machine translation
+│   │   ├── stt_engine.py        # Whisper speech-to-text
+│   │   └── tts_engine.py        # Inworld text-to-speech
+│   ├── abs_test.py              # ABS model smoke tests
+│   ├── client_main.py           # Main entry point
+│   ├── sts_main.py              # Speech-to-speech standalone runner
+│   ├── video_client.py          # Video pipeline client
+├── .env                         # API credentials
+└── README.md
+```
+
 ### 1. Prerequisites
 * **Python 3.10+**
 * **FFmpeg** (Required for audio processing)
@@ -187,35 +221,47 @@ hf download H-Liu1997/BEAT --repo-type dataset --local-dir data
 
 ## Training the Lip-Sync Model
 
-The Visual Lip-Sync Pipeline uses a Transformer-based model to map audio features to 52 ARKit blendshape coefficients. We use the **BEAT Dataset** for high-fidelity training.
-
-### 1. Training Environment
-The training is conducted via the `notebooks/train.ipynb` file. This notebook is designed to run in a Jupyter environment with a GPU.
+**1. Download BEAT dataset**
 
 ```bash
-# Ensure dev dependencies are installed (including ipykernel)
-uv add --dev ipykernel
+# macOS / Linux
+curl -LsSf https://hf.co/cli/install.sh | bash
 
-# Launch Jupyter
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://hf.co/cli/install.ps1 | iex"
+
+# Download into data/
+hf download H-Liu1997/BEAT --repo-type dataset --local-dir data
+```
+
+**2. Train**
+
+```bash
+uv add --dev ipykernel
 jupyter notebook notebooks/ABS_train.ipynb
 ```
 
-### 2. Hyperparameter Fitting
-The training script implements a grid-search approach to find the optimal model. You can toggle between:
-* **Custom Phonetic-CNN:** A from-scratch encoder that learns phonetics specifically for this task.
-* **Pre-trained Wav2Vec 2.0:** A robust backbone that provides higher accuracy but slightly more latency.
+The notebook runs a grid search over learning rate, hidden dimension, and epoch budget. It supports two backbone modes:
 
-### 3. Monitoring with TensorBoard
-All trials log their loss curves and hyperparameters to the `logs/` directory in the project root. To visualize the "fitting" process:
+- **Custom CNN** — trained from scratch on BEAT audio
+- **Wav2Vec 2.0** — pretrained phonetic encoder for higher accuracy
+
+**3. Monitor**
 
 ```bash
-# From the project root
 tensorboard --logdir=logs
 ```
-Navigate to the **HParams** tab in the browser to compare different model configurations.
 
-### 4. Model Artifacts
-The training loop automatically performs the following:
-1. **Validation:** Checks performance against a 10% hold-out set of the BEAT dataset.
-2. **Serialization:** Saves the best-performing version of each trial as a `.pt` file in the `models/` directory.
-3. **Traceability:** Each saved model includes its specific configuration dictionary, making it easy to load into the live orchestrator.
+Navigate to the **HParams** tab to compare trials. Best checkpoints are saved to `models/` as `.pt` files with their config dict embedded for reproducible loading.
+
+### GPU Verification
+
+```bash
+uv run python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+```
+
+For CUDA-specific wheels:
+
+```bash
+uv pip install --index-url https://download.pytorch.org/whl/cu118 -r torch.txt
+```
