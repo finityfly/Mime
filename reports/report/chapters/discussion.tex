@@ -3,26 +3,27 @@
 %======================================================================
 
 \section{Limitations and Challenges}
-Tobio's development came with its fair share of challenges. The most significant was achieving an accurate court segmentation system, finding a method for consistent player identification, and reliable event detection.
 
-While the player tracking model is good at finding players (mAP50 of 0.94), the bounding boxes aren't always precise (mAP50-95 of 0.61) and the model often swapped player IDs. In the chaos of a real game, similar-looking players sometimes led to devastating identity switches, and would have to be manually corrected in post.
-
-Moreover, the models are also only as good as their training data. The court segmentation dataset, for example, was fairly clean and didn't include the messy, overlapping lines of multi-use gyms where many amateur teams play. This means performance could dip in those more common, imperfect environments.
-
-In addition, compiling the 3D spatial coordinates of the ball was one of the biggest initial constraints, since our objective was to use a single camera viewpoint. Though exact XYZ could be obtained, the depth information was unreliabile without more powerful models and more research. 
-
-The most difficult challenge had to be event detection. Volleyball actions are continuous and fluid, making it hard to define clear start and end points for each event, especially in a sport as complicated and fast-paced as volleyball. The model often confused similar actions, like spikes and serves, leading to misclassifications that would need manual review. The overall system I developed was only a prototype and had some questionable logic and reliability issues due to it's complexity, but I know that a well-polished system is definitely within arms reach with more time and resources.
+UNFINISHED
 
 \section{Directions for Future Work}
 
-I definitely see a lot of potential in improving Tobio further, both in terms of turning it into a fully-polished product by improving the technical components, as well as expanding into other sports and use-cases. First of all, I'd like to improve the recall of the most important subcomponents: ball tracking, player recognition, and event detection. These form the backbone of what's possible with Tobio, so improving their reliability is a priority. Additionally, I'd like to improve my application's practicality with real competitive teams' use-cases in mind. This includes building more meaningful visualizations, more powerful and flexible user interface that allows for each teams' customizations, and curated reports for both coaches and players.
+There are several concrete directions to improve Mime into a production-ready system. First, end-to-end latency should be reduced further through tighter streaming orchestration, smaller translation/synthesis models, and improved buffering policies between STT, MT, TTS, and avatar inference. Lower and more stable latency would make turn-taking feel more natural in real conversations.
 
-Although, other more popular sports already have implementations of similar systems, these popular sports often have paid subscriptions to such services and the non-popular sports don't receive enough attention for innovation. Volleyball is just the start line, and I'd like to examine what possiblities exist in other domains.
+Second, visual quality can be improved by increasing temporal stability of predicted blendshapes and adding stronger regularization against jitter. Future training should expand beyond the current setup with broader multilingual and speaker-diverse data, stronger validation on held-out speakers, and ablations on architecture and loss terms.
+
+Third, the platform should evolve from a prototype integration into a robust user-facing tool. This includes better device handling, clearer fallback behavior when external APIs fail, configurable quality-latency presets, and simpler setup for common conferencing environments. Together, these changes would substantially improve reliability and usability in day-to-day deployment.
 
 \section{Implications and Impact}
 
-I believe that Tobio has the potential to democratize sports performance analysis, since one of my key morals is making it accessible to anyone, including teams that lack the resources of professional organizations. Through automating the entire process of video analysis, teams can save opportunity costs on tedious manual data collection and focus more on the other significant aspects one would much rather be doing.
+Mime's primary impact is in improving cross-lingual communication quality by addressing both audio and visual coherence, not translation alone. By coupling translated speech with synchronized facial animation, the system targets a common failure mode in multilingual calls: hearing one language while seeing mouth motion from another. Reducing this mismatch can improve perceived naturalness and lower cognitive load for participants.
+
+From a practical perspective, Mime demonstrates that real-time multimodal translation interfaces can run on consumer hardware using modular, API-assisted components. This lowers the barrier for educational teams, small organizations, and independent developers to prototype advanced communication tools without large infrastructure budgets.
+
+More broadly, the project provides a reusable systems template for future telepresence applications where timing alignment between modalities is critical, including accessibility support, multilingual tutoring, and remote collaboration.
 
 \section{Conclusions}
 
-In conclusion, this project has successfully developed a proof-of-concept AI-powered platform for volleyball video analysis. While there are still many shortcomings due to the limited scope and time constraints of this project, Tobio's end-to-end system is still able to show a glimpse into what is possible when combining computer vision, machine learning, and sports analytics. With proper development and time, Tobio has the potential to become a valuable tool for amateur and collegiate volleyball teams, all while paving the way for similar systems in other sports.
+This project delivers a functional proof-of-concept for Mime: an end-to-end real-time pipeline that combines speech recognition, machine translation, speech synthesis, and audio-driven 3D facial animation. The implementation validates the central thesis of this work: live multilingual communication benefits when translation and lip-sync are treated as a single integrated problem.
+
+Although limitations remain in latency robustness, model generalization, and production hardening, the current system establishes a strong technical baseline and demonstrates feasibility on commodity hardware. With continued optimization and broader evaluation, Mime can mature into a practical tool for more natural and immersive cross-language video communication.

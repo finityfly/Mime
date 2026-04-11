@@ -85,9 +85,9 @@ Validation runs every epoch using MSE and MAE over the held-out 20\% split. Tens
 
 Grid search trials are run over learning rate, hidden dimension, and epoch budget (Table~\ref{tab:hparam}). Each trial writes isolated TensorBoard logs and saves the best checkpoint for direct comparison of convergence behavior and final validation performance.
 
-\subsection{Iterative Model Development}
+\subsection{Iterative/Experimental Model Development}
 
-Live testing of the initial model revealed a consistent temporal synchronisation failure: predicted blendshapes would rush ahead of the speech signal, producing visibly misaligned lip motion. This was attributed to the absence of positional encoding and no explicit residual temporal mixing, limiting the model's ability to resolve fine-grained frame ordering. Late in the project, a revised architecture was trained and found to exceed the lip-sync performance of the original. Key changes include: a three-layer convolutional backbone (strides 2-2-2, SiLU activations, BatchNorm throughout); a depthwise-separable \textbf{temporal mixer} with a residual connection; \textbf{sinusoidal positional encoding} with pre-Transformer LayerNorm; and a Transformer encoder with \texttt{norm\_first=True} and GELU activation for improved training stability.
+Live testing of the initial model revealed a consistent temporal synchronisation failure: predicted blendshapes would rush ahead of the speech signal, producing visibly misaligned lip motion. This was attributed to the absence of positional encoding and no explicit residual temporal mixing, limiting the model's ability to resolve fine-grained frame ordering. Late in the project, a revised architecture was trained but unfortunately failed to meet the speed constraints of the project, so it is unused in the final implementation. Key changes include: a three-layer convolutional backbone (strides 2-2-2, SiLU activations, BatchNorm throughout); a depthwise-separable \textbf{temporal mixer} with a residual connection; \textbf{sinusoidal positional encoding} with pre-Transformer LayerNorm; and a Transformer encoder with \texttt{norm\_first=True} and GELU activation for improved training stability.
 
 \subsection{System-Level Validation}
 
