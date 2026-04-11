@@ -23,8 +23,8 @@ mime/
 ├── data/                        # BEAT dataset (downloaded separately)
 ├── logs/                        # TensorBoard trial logs
 ├── models/
-│   ├── best_fast.pt             # Best checkpoint — fast inference model
-│   ├── best_slow.pt             # Best checkpoint — slow inference model
+│   ├── best_fast.pt             # Best checkpoint - fast inference model
+│   ├── best_slow.pt             # Best checkpoint - slow inference model
 ├── notebooks/
 │   └── ABS_train.ipynb          # Lip-sync model training + grid search
 ├── reports/					 # Project proposal and final report
@@ -244,8 +244,8 @@ jupyter notebook notebooks/ABS_train.ipynb
 
 The notebook runs a grid search over learning rate, hidden dimension, and epoch budget. It supports two backbone modes:
 
-- **Custom CNN** — trained from scratch on BEAT audio
-- **Wav2Vec 2.0** — pretrained phonetic encoder for higher accuracy
+- **Custom CNN** - trained from scratch on BEAT audio
+- **Wav2Vec 2.0** - pretrained phonetic encoder for higher accuracy
 
 **3. Monitor**
 
