@@ -4,11 +4,50 @@
 
 % All relevant quantitative results are provided, and they fully characterize the performance of the methods.
 
-All of the following results can be found in the results folder of the project GitHub repository, if too small to view here: \url{https://github.com/2026W-COMP4107/mime/tree/main/results}.
+All of the following results can be found in the results folder of the project GitHub repository, if too small to view here: \url{https://github.com/2026W-COMP4107/mime/tree/main/results}. 
 
+\subsection{Hyperparameter Search Space}
 
+A large part of our pipeline in making the model look accurate is reliant on the optimization of the Audio-to-Blendshape neural network. In order to find the best hyperparameters for this model, we performed a grid search across a defined hyperparameter space. Pre-trained weights were disabled for all trials to isolate the learning capacity of the architecture from scratch. The search space consisted of 8 distinct configurations, varying the following discrete hyperparameters while maintaining a constant batch size of 4:
+
+\begin{itemize}
+    \item \textbf{Epochs:} 5, 20
+    \item \textbf{Hidden Dimensions:} 256, 512
+    \item \textbf{Learning Rate (LR):} 0.0001, 0.00005
+\end{itemize}
 %======================================================================
 
+\begin{figure}[htbp]
+    \centering
+    % First Subfigure (The Line Graphs)
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{loss_curves.png}
+        \caption{Combined training and validation loss curves over time.}
+        \label{fig:loss_curves}
+    \end{subfigure}
+    % Second Subfigure (The Bar Chart)
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{val_loss_bar.png}
+        \caption{Average validation loss across all hyperparameter configurations.}
+        \label{fig:val_loss_bar}
+    \end{subfigure}
+    \caption{Quantitative results of the hyperparameter grid search identifying the optimal model configuration.}
+    \label{fig:hyperparam_results}
+    \hfill
+
+\end{figure}
+
+The performance of each configuration evaluated in the above figures used Mean Squared Error (MSE), allowing us to characterize how well each model generalized to unseen data. The quantitative results revealed several distinct trends across the hyperparameter space. Figure \ref{fig:loss_curves} illustrates the combined 
+training and validation loss curves for all configurations, showing a consistent decrease in loss over time, with a more pronounced drop after the third epoch. This indicates that the model was able to learn effectively from the training data, with diminishing returns as training progressed.
+It also should be noted that the validation loss closely follows the training loss, suggesting that the model is not overfitting to the training data, at least within the epoch range tested.
+
+The most significant divergence in model performance was dictated by the number of epochs as seen in Figure \ref{fig:val_loss_bar}. Models trained for 20 epochs consistently outperformed those trained for only 5 epochs by a visible margin, whereas the average validation MSE across hidden dimensions and learning rates were minimal. 
+This suggests that the model's capacity to learn from the data was more heavily influenced by the duration of training rather than the specific architecture or learning rate, within the ranges tested. This can also be seen in figure \ref{fig:loss_curves}, where both the training and validation loss curves drop significantly after 3 timesteps.
+Note that the bars in Green indicate a better average peak validation loss compared to the other configuration for every specific hyperparameter. 
+Coincidentally, the model with the best peak validation loss was trained over 20 epochs, with a batch size of 4, a hidden dimension of 512, and a learning rate of 0.0001, achieving a validation MSE of 0.0096, which is a significant improvement over the worst performing model with a validation MSE of 0.0116.
+The best performing model achieved a peak MSE of 0.0098 on the held-out test set, which again indicates the model's ability to generalize to unseen data.
 
 \section{Qualitative Results}
 
