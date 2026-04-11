@@ -17,9 +17,9 @@ State-of-the-art visual dubbing systems address this problem, but they were desi
 The project is motivated by a simple goal: make multilingual video conversation feel coherent in both sound and appearance. Instead of treating translation and lip-sync as separate tools, Mime integrates them into one stream-oriented system. The platform is designed around three core objectives:
 
 \begin{enumerate}
-    \item \textbf{End-to-end integration:} Build a real-time pipeline that chains speech recognition, machine translation, and synthesized speech with an audio-to-blendshape visual model.
-    \item \textbf{Temporal visual coherence:} Produce stable lip-sync by mapping speech features to 52 ARKit facial blendshape coefficients and rendering an animated avatar suitable for live overlay or virtual camera output.
-    \item \textbf{Deployment practicality:} Maintain low latency on consumer-grade hardware, with integration support for common video conferencing workflows.
+    \item \textbf{End-to-end integration:} Build a real-time pipeline that chains speech recognition, machine translation, and synthesized speech with an audio-to-blendshape visual model. This project will focus on specifically \textbf{English-to-French translation}.
+    \item \textbf{Temporal visual coherence:} Produce stable lip-sync by mapping speech features to 52 ARKit facial blendshape coefficients and rendering an animated avatar suitable for live mouth overlay on a virtual camera output.
+    \item \textbf{Deployment practicality:} Maintain low latency on consumer-grade hardware, with integration support for common video conferencing workflows. This project will target \textbf{Zoom} as the primary use case, but the architecture should be adaptable to other platforms with the use of virtual camera and audio interfaces.
 \end{enumerate}
 
 In implementation terms, Mime uses modular processors for STT, MT, and TTS, then routes synthesized audio to both playback and a fast inference path for facial animation. This architecture enables synchronized media output and reduces duplicated processing in live operation.

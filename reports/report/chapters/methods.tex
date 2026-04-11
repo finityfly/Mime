@@ -8,103 +8,87 @@ Mime is implemented as two coupled neural pipelines: a \textbf{speech translatio
 
 \subsection{Speech Translation Pipeline}
 
-\noindent\textbf{Speech-to-Text (STT):} The microphone stream is captured at 16 kHz mono and segmented online using an RMS-based voice activity strategy. Chunks are finalized after a silence window and transcribed with Groq's \texttt{whisper\allowbreak-large\allowbreak-v3\allowbreak-turbo}. This chunked design reduces unnecessary API calls and keeps inference focused on complete utterances.
+\noindent\textbf{Speech-to-Text (STT):} The microphone stream is captured at 16 kHz mono and segmented online using an RMS-based voice activity strategy. Chunks are finalized after a silence window and transcribed with Groq's \texttt{whisper\allowbreak-large\allowbreak-v3\allowbreak-turbo}. This chunked design reduces unnecessary API calls and keeps inference focused on complete utterances, rather than segments of non-contextual speech.
 
 \noindent\textbf{Machine Translation (MT):} Each English utterance is translated to conversational French using \texttt{llama\allowbreak-3.3\allowbreak-70b\allowbreak-versatile} through a constrained system prompt. A short rolling context buffer is included to improve coherence for fragments and pronoun resolution during live dialogue.
 
-\noindent\textbf{Text-to-Speech (TTS):} French text is synthesized by Inworld TTS (default model \texttt{inworld\allowbreak-tts\allowbreak-1.5\allowbreak-mini}, French voice). Audio is streamed as LINEAR16 at 48 kHz so playback can begin before sentence completion, which lowers perceived latency in meetings.
+\noindent\textbf{Text-to-Speech (TTS):} French text is synthesized by Inworld TTS (default model \texttt{inworld\allowbreak-tts\allowbreak-1.5\allowbreak-mini}, French voice). Audio is streamed as LINEAR16\cite{linear16} at 48 kHz so playback can begin before sentence completion, which lowers perceived latency in meetings.
 
 \subsection{Audio-to-Blendshape Neural Model}
 
-The visual pipeline predicts 52 ARKit blendshape coefficients from audio. The training notebook uses a strided 1D convolutional frontend for local phonetic feature extraction, followed by:
+The ABS model maps raw 16 kHz mono audio to 52 ARKit blendshape coefficients at 60 FPS. It follows an encode-then-predict structure: a four-layer progressive 1D convolutional backbone extracts hierarchical phonetic features with increasing channel depth, a Transformer encoder models long-range co-articulation dependencies, and a two-layer regression head with a final sigmoid activation constrains outputs to $[0,1]$. The model supports two backbone modes: a custom CNN (Mode B, used in all experiments) and an optional pretrained Wav2Vec2 encoder \cite{wav2vec2} (Mode A), included for future comparison. Table~\ref{tab:abs_arch} summarises the custom CNN configuration.
 
-\begin{enumerate}
-    \item a temporal depthwise mixing block,
-    \item sinusoidal positional encoding,
-    \item a Transformer encoder for long-range temporal context,
-    \item a regression head with sigmoid outputs to constrain coefficients to $[0,1]$.
-\end{enumerate}
+\begin{table}[h]
+\centering
+\caption{ABS architecture ($H{=}512$, $L{=}4$, heads$={8}$).}
+\label{tab:abs_arch}
+\small
+\begin{tabular}{p{2.8cm}p{5.2cm}rr}
+\hline
+\textbf{Layer} & \textbf{Key Attributes} & \textbf{Out Dim} & \textbf{Params} \\
+\hline
+Conv1 + BN + ReLU   & $C{=}64$, kernel=10, stride=4    & $T/4 \times 64$      & 0.8 K   \\
+Conv2 + ReLU        & $C{=}128$, kernel=4, stride=4    & $T/16 \times 128$    & 32.9 K  \\
+Conv3 + ReLU        & $C{=}256$, kernel=4, stride=4    & $T/64 \times 256$    & 131.3 K \\
+Conv4 + ReLU        & $C{=}H$, kernel=4, stride=4      & $T/256 \times H$     & 524.8 K \\
+Transformer Encoder & $L$ layers, $d{=}H$, heads=8, FFN dim$=2048$ & $T/256 \times H$ & 12.6 M \\
+Regressor Head      & Linear($H{\to}256$) + LeakyReLU(0.2) + Linear($256{\to}52$) + Sigmoid & $T/256 \times 52$ & 144.7 K \\
+\hline
+\textbf{Total}      &                                  &                      & \textbf{13.4 M} \\
+\hline
+\end{tabular}
+\end{table}
 
-Given predicted sequence $\hat{Y}$ and target sequence $Y$, the core objective is \textit{masked mean squared error} over valid (unpadded) frames:
+\noindent\textbf{Loss.} The primary objective is mean squared error over predicted and target blendshape sequences:
+$$\mathcal{L}_{\text{mse}} = \frac{1}{N}\sum_{t} \lVert \hat{Y}_t - Y_t \rVert_2^2$$
+Early experiments produced jittery animation, so a velocity consistency term was added to penalise erratic frame-to-frame changes:
+$$\mathcal{L} = \mathcal{L}_{\text{mse}} + \lambda\,\mathcal{L}_{\text{vel}}, \quad \mathcal{L}_{\text{vel}} = \frac{1}{N'}\sum_{t} \lVert (\hat{Y}_t{-}\hat{Y}_{t-1}) - (Y_t{-}Y_{t-1}) \rVert_2^2$$
+$\lambda{=}0.5$ was fixed after informal testing balanced smoothness against per-frame MSE. Training uses the Adam optimizer with gradient clipping (max norm = 1.0).
 
-$$
-\mathcal{L}_{\text{mse}} = \frac{1}{N}\sum_{t \in \Omega} \lVert \hat{Y}_t - Y_t \rVert_2^2
-$$
+\noindent\textbf{Hyperparameter Search.} A grid search was run over the parameters most likely to affect capacity and stability, shown in Table~\ref{tab:hparam}. The best configuration was selected by lowest validation MSE; $H{=}512$ consistently outperformed $H{=}256$, and longer training (20 epochs) improved convergence where early stopping was not triggered.
 
-To encourage realistic temporal dynamics and reduce jitter, training adds a velocity consistency term:
-
-$$
-\mathcal{L}_{\text{vel}} = \frac{1}{N'}\sum_{t \in \Omega'} \lVert (\hat{Y}_t-\hat{Y}_{t-1}) - (Y_t-Y_{t-1}) \rVert_2^2
-$$
-
-with total loss:
-
-$$
-\mathcal{L} = \mathcal{L}_{\text{mse}} + \lambda\,\mathcal{L}_{\text{vel}}, \quad \lambda = 0.35
-$$
-
-Training uses AdamW, OneCycleLR scheduling, mixed precision on CUDA, gradient clipping, and early stopping.
+\begin{table}[h]
+\centering
+\caption{Hyperparameter search space and selected values.}
+\label{tab:hparam}
+\small
+\begin{tabular}{lll}
+\hline
+\textbf{Hyperparameter} & \textbf{Values Tried} & \textbf{Best} \\
+\hline
+Learning rate        & $1\times10^{-4}$, $5\times10^{-5}$ & $1\times10^{-4}$ \\
+Hidden dim $H$       & 256, 512                            & 512 \\
+Batch size           & 4                                   & 4   \\
+Epochs               & 5, 20                               & 20  \\
+Pretrained backbone  & False                               & False \\
+\hline
+\end{tabular}
+\end{table}
 
 \subsection{Real-Time Inference and Rendering}
 
-At runtime, the client uses an optimized ABS inference path with a sliding audio window and queue-based frame updates. Predicted blendshape vectors are remapped from BEAT ordering to canonical ARKit ordering, then applied to morph targets in a rigged GLB avatar via an offscreen renderer.
-
-A transport bridge publishes:
-
-\begin{enumerate}
-    \item rendered avatar frames to a virtual camera, and
-    \item synthesized TTS audio to a virtual cable device,
-\end{enumerate}
-
-allowing direct integration with Zoom-compatible conferencing workflows.
+At runtime, the ABS model runs on a sliding audio window (0.4 s at 48 kHz) with queue-based frame updates. Predicted blendshapes are remapped from BEAT ordering to canonical ARKit ordering and applied to morph targets in a rigged GLB avatar via an offscreen renderer. A transport bridge publishes rendered frames to a virtual camera and TTS audio to a virtual cable device, enabling direct integration with Zoom-compatible workflows.
 
 \section{Dataset and Data Processing}
 
-\subsection{Primary Dataset}
+The model is trained on the \textbf{BEAT multimodal dataset} \cite{liu2022beat} (ECCV 2022), a 76-hour motion-capture corpus from 30 speakers annotated with synchronized audio, text, emotion labels, and \textit{52-dimensional facial blendshape weights} - matching the ARKit target space exactly. The English subset (\texttt{beat\_english\_v0.2.1}, 60 h) is used, though additional languages available in BEAT could be explored in future work.
 
-The project is trained on the \textbf{BEAT multimodal talking dataset} \cite{liu2022beat}, using locally downloaded paired audio and blendshape annotations. In the current experiments, the active split comes from the English subset (\texttt{beat\_english\_v0.2.1}) available under the repository data directory.
-
-\subsection{Preprocessing Pipeline}
-
-Each sample is formed from a side-by-side \texttt{.wav} and \texttt{.json} pair:
-
-\begin{enumerate}
-    \item Audio is loaded as mono and resampled to 16 kHz.
-    \item Per-sample clip duration is capped (10 seconds in the current notebook setup) for stable training throughput.
-    \item JSON frame weights are parsed and normalized to a fixed 52-dimensional target vector per frame (pad/truncate when needed).
-    \item Targets are aligned to the effective audio duration using 60 FPS frame logic.
-    \item Variable-length sequences are padded per batch with explicit length tensors for masked losses.
-\end{enumerate}
-
-The training pipeline currently uses an 80/20 train/validation split with a fixed random seed for reproducibility.
+Each sample pairs a \texttt{.wav} and \texttt{.json} file: audio is loaded as mono at 16 kHz and clipped to 10 seconds, with blendshape targets aligned at 60 FPS consistent with BEAT's native capture rate. When a clip is truncated, the target frame count is scaled proportionally to maintain audio-target alignment. Variable-length sequences are padded per batch. An 80/20 train/validation split with a fixed random seed ensures reproducibility.
 
 \section{Validation Strategy and Experiments}
 
 \subsection{Model-Level Validation}
 
-Validation is performed every epoch with sequence masking to avoid padding bias. The primary tracked metrics are:
-
-\begin{enumerate}
-    \item \textbf{Masked MSE}: main optimization-aligned error metric.
-    \item \textbf{Masked MAE}: interpretable average absolute coefficient error.
-    \item \textbf{Threshold Accuracy}: fraction of coefficients within an absolute error threshold (default 0.05).
-\end{enumerate}
-
-TensorBoard logging is used to track train/validation loss, accuracy, MAE, learning rate, and trial summaries. Best checkpoints are selected by validation loss with early stopping patience and minimum-delta logic.
+Validation runs every epoch using MSE and MAE over the held-out 20\% split. TensorBoard logs train and validation loss curves alongside MAE per epoch, and best checkpoints are saved by lowest validation MSE. To assess the contribution of the velocity consistency term, models trained with $\lambda = 0.5$ are compared against MSE-only runs ($\lambda = 0$), with MAE used to measure any improvement in per-coefficient smoothness.
 
 \subsection{Hyperparameter Experiments}
 
-The notebook supports structured trial sweeps over learning rate, hidden dimension, Transformer depth/heads, dropout, batch size, and epoch count. Each trial writes isolated logs and checkpoints, enabling direct comparison of convergence behavior and best-epoch performance.
+Grid search trials are run over learning rate, hidden dimension, and epoch budget (Table~\ref{tab:hparam}). Each trial writes isolated TensorBoard logs and saves the best checkpoint for direct comparison of convergence behavior and final validation performance.
+
+\subsection{Iterative Model Development}
+
+Live testing of the initial model revealed a consistent temporal synchronisation failure: predicted blendshapes would rush ahead of the speech signal, producing visibly misaligned lip motion. This was attributed to the absence of positional encoding and no explicit residual temporal mixing, limiting the model's ability to resolve fine-grained frame ordering. Late in the project, a revised architecture was trained and found to exceed the lip-sync performance of the original. Key changes include: a three-layer convolutional backbone (strides 2-2-2, SiLU activations, BatchNorm throughout); a depthwise-separable \textbf{temporal mixer} with a residual connection; \textbf{sinusoidal positional encoding} with pre-Transformer LayerNorm; and a Transformer encoder with \texttt{norm\_first=True} and GELU activation for improved training stability.
 
 \subsection{System-Level Validation}
 
-Beyond offline metrics, the system is validated in \textit{end-to-end live runs}:
-
-\begin{enumerate}
-    \item microphone speech $\rightarrow$ transcription,
-    \item English-to-French translation,
-    \item streamed French synthesis,
-    \item synchronized avatar mouth motion and Zoom bridge output.
-\end{enumerate}
-
-Operational logs (for example first audio chunk latency, per-epoch ETA, and module-level status) are used to assess practical real-time behavior and robustness under device reconnect or stream interruptions.
+The full pipeline is validated in end-to-end live runs: microphone speech $\rightarrow$ transcription $\rightarrow$ translation $\rightarrow$ French synthesis $\rightarrow$ synchronized avatar mouth overlay via Zoom bridge. Concrete pass criteria are defined: first-audio-chunk latency below 800 ms; translation quality verified by manual review of 20 sampled utterances; and lip-sync coherence maintained with no perceptible frame drops over a sustained 5-minute session. Robustness under device reconnect and stream interruption is additionally assessed from operational logs.
