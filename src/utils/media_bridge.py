@@ -289,7 +289,7 @@ class ZoomMediaBridge:
             )
 
         # Windows-first auto-discovery for VB-CABLE style routing.
-        preferred = ["cable input", "vb-audio", "vb cable", "virtual cable", "cable"]
+        preferred = ["cable input", "vb-audio", "blackhole 2ch", "vb cable", "virtual cable", "cable"]
         for keyword in preferred:
             for idx, name in devices:
                 if keyword in name.lower():
