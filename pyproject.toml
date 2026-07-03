@@ -79,9 +79,12 @@ dependencies = [
     "spark-parser==1.9.0",
     "stack-data==0.6.3",
     "sympy==1.14.0",
-    "torch==2.1.0+cu118",
-    "torchaudio==2.1.0+cu118",
-    "torchvision==0.16.0+cu118",
+    "torch==2.1.0; sys_platform == 'darwin'",
+    "torchaudio==2.1.0; sys_platform == 'darwin'",
+    "torchvision==0.16.0; sys_platform == 'darwin'",
+    "torch==2.1.0+cu118; sys_platform != 'darwin'",
+    "torchaudio==2.1.0+cu118; sys_platform != 'darwin'",
+    "torchvision==0.16.0+cu118; sys_platform != 'darwin'",
     "tqdm==4.67.3",
     "traitlets==5.14.3",
     "trimesh==4.11.5",
@@ -103,8 +106,27 @@ dev = [
     "notebook>=7.5.5",
 ]
 
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-pypi"
+url = "https://pypi.org/simple"
+explicit = true
+
 [tool.uv.sources]
-torch = { index = "pytorch-cu118" }
-torchaudio = { index = "pytorch-cu118" }
-torchvision = { index = "pytorch-cu118" }
+torch = [
+    { index = "pytorch-cu118", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-pypi", marker = "sys_platform == 'darwin'" },
+]
+torchaudio = [
+    { index = "pytorch-cu118", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-pypi", marker = "sys_platform == 'darwin'" },
+]
+torchvision = [
+    { index = "pytorch-cu118", marker = "sys_platform != 'darwin'" },
+    { index = "pytorch-pypi", marker = "sys_platform == 'darwin'" },
+]
 pyrender = { git = "https://github.com/aelzeiny/pyrender", rev = "24f39dfbc0ad0215979fcf4ab0d2debee345578e" }
