@@ -68,7 +68,7 @@ dependencies = [
     "pyrender",
     "python-dotenv==1.2.2",
     "pyvirtualcam==0.15.0",
-    "pywin32==311; sys_platform == 'win32'"
+    "pywin32==311; sys_platform == 'win32'",
     "pyyaml==6.0.3",
     "requests==2.33.1",
     "rich==14.3.3",
