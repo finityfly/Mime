@@ -23,9 +23,9 @@ dependencies = [
     "torch==2.7.1; sys_platform == 'darwin'",
     "torchaudio==2.7.1; sys_platform == 'darwin'",
     "torchvision==0.22.1; sys_platform == 'darwin'",
-    "torch==2.7.1+cu118; sys_platform != 'darwin'",
-    "torchaudio==2.7.1+cu118; sys_platform != 'darwin'",
-    "torchvision==0.22.1+cu118; sys_platform != 'darwin'",
+    "torch==2.7.1+cu118; sys_platform == 'win32'",
+    "torchaudio==2.7.1+cu118; sys_platform == 'win32'",
+    "torchvision==0.22.1+cu118; sys_platform == 'win32'",
     "trimesh>=4.11.5",
     "websockets>=16.0",
 ]
