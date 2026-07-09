@@ -21,12 +21,12 @@ class STTProcessor:
         self.CHANNELS = 1
         self.RATE = 16000
 
-        # Placeholder — will be set during calibrate_noise_floor().
+        # Placeholder -- will be set during calibrate_noise_floor().
         # The adaptive threshold replaces the old hard-coded value of 800,
         # which was far too low for typical ambient noise levels.
         self.SILENCE_THRESHOLD = 800
         self.MAX_SILENT_CHUNKS = 15   # ~15 * 1024/16000 = ~0.96s of silence to finalise
-        self.MIN_SPEECH_CHUNKS = 8    # ~0.5s minimum utterance — eliminates clicks/pops
+        self.MIN_SPEECH_CHUNKS = 8    # ~0.5s minimum utterance -- eliminates clicks/pops
 
         # Expanded list of phrases commonly hallucinated by Whisper from noise.
         # These are reliably returned by the model even when no speech occurred.
@@ -64,11 +64,12 @@ class STTProcessor:
         """
         Sample 1 second of ambient audio and set an adaptive silence threshold.
 
-        The threshold is set to max(mean_rms × 3.5, 800) so it scales with
+        The threshold is set to max(mean_rms x 3.5, 800) so it scales with
         the user's environment while never dropping below a sane minimum.
         A quiet room might calibrate to ~800-1200; a noisier space to higher.
         """
-        self.log("[STT] Calibrating noise floor — please remain quiet for 1 second...")
+        self.log("[STT] Calibrating noise floor -- please remain quiet for 1 second...")
+        cal_stream = None
         try:
             open_kwargs = dict(
                 format=self.FORMAT,
@@ -88,9 +89,6 @@ class STTProcessor:
                 data = cal_stream.read(self.CHUNK, exception_on_overflow=False)
                 rms_values.append(self._calculate_rms(data))
 
-            cal_stream.stop_stream()
-            cal_stream.close()
-
             mean_rms = np.mean(rms_values) if rms_values else 0
             adaptive_threshold = int(mean_rms * 3.5)
             self.SILENCE_THRESHOLD = max(adaptive_threshold, 800)
@@ -100,6 +98,13 @@ class STTProcessor:
             )
         except Exception as e:
             self.log(f"[STT] Noise calibration failed ({e}), using default threshold {self.SILENCE_THRESHOLD}")
+        finally:
+            if cal_stream is not None:
+                try:
+                    cal_stream.stop_stream()
+                    cal_stream.close()
+                except Exception:
+                    pass
 
     def _is_hallucination(self, text: str) -> bool:
         """
@@ -116,9 +121,10 @@ class STTProcessor:
         if len(lower) < 3 and not lower.isalpha():
             return True
 
-        # Check the expanded hallucination phrase list
+        # Check the expanded hallucination phrase list -- exact match only to avoid
+        # rejecting valid speech like "a quick test" or "to be or not to be"
         for phrase in self.HALLUCINATIONS:
-            if phrase == lower or lower.startswith(phrase) or lower.endswith(phrase):
+            if phrase == lower:
                 return True
 
         # Reject text with no alphabetic characters (pure numbers, punctuation, symbols)
@@ -154,6 +160,7 @@ class STTProcessor:
 
             frames = []
             silent_chunks_count = 0
+            speech_chunks_count = 0
             recording_started = False
 
             while self.is_running:
@@ -164,6 +171,7 @@ class STTProcessor:
                     if not recording_started:
                         recording_started = True
                     frames.append(data)
+                    speech_chunks_count += 1
                     silent_chunks_count = 0
                 else:
                     if recording_started:
@@ -171,11 +179,13 @@ class STTProcessor:
                         silent_chunks_count += 1
 
                         if silent_chunks_count > self.MAX_SILENT_CHUNKS:
-                            # Only queue if utterance was long enough to be real speech
-                            if len(frames) >= self.MIN_SPEECH_CHUNKS:
+                            # Only queue if utterance was long enough to be real speech.
+                            # Use speech_chunks_count to avoid counting trailing silence.
+                            if speech_chunks_count >= self.MIN_SPEECH_CHUNKS:
                                 self.audio_queue.put(frames)
                             frames = []
                             silent_chunks_count = 0
+                            speech_chunks_count = 0
                             recording_started = False
 
         except Exception as e:
@@ -210,7 +220,7 @@ class STTProcessor:
                 )
                 text = resp.strip()
 
-                # Comprehensive hallucination filter — catches both known phrases
+                # Comprehensive hallucination filter -- catches both known phrases
                 # and structurally invalid transcriptions (too short, no letters, etc.)
                 if not self._is_hallucination(text):
                     self.log(f"[STT] Heard: {text}")
