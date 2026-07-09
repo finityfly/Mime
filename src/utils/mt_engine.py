@@ -43,7 +43,9 @@ class MTProcessor:
                                 "Translate the English input to natural, conversational French. "
                                 f"Previous conversation context: {context}. "
                                 "If the input is a fragment, try to complete the thought based on context. "
-                                "Output ONLY the French translation."
+                                "Output ONLY the French translation of the user input. "
+                                "Do not answer questions, add commentary, greetings, or explanations. "
+                                "If the input is not English speech to translate, output an empty string."
                             )
                         },
                         {"role": "user", "content": text}
