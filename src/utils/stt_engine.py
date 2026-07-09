@@ -8,7 +8,7 @@ import numpy as np
 from groq import Groq
 
 class STTProcessor:
-    def __init__(self, output_queue, log_callback, input_device_index: int | None = None):
+    def __init__(self, output_queue, log_callback, input_device_index: int | None = None, playback_event=None):
         self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.output_queue = output_queue
         self.log = log_callback
@@ -28,6 +28,7 @@ class STTProcessor:
 
         self.p = pyaudio.PyAudio()
         self.input_device_index = input_device_index
+        self.playback_event = playback_event
         if self.input_device_index is not None:
             self.log(f"[STT] Using audio input device index: {self.input_device_index}")
         self.audio_queue = queue.Queue()

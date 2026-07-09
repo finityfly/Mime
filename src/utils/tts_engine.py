@@ -34,9 +34,33 @@ class TTSProcessor:
         self._thread: threading.Thread | None = None
 
 
+
+    def _prepare_audio(self, audio_bytes: bytes, is_first: bool = False) -> bytes:
+        """Apply short fade-in on chunk starts to reduce ticking/clicking at discontinuities."""
+        if not audio_bytes:
+            return audio_bytes
+        try:
+            samples = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float64)
+            if samples.size == 0:
+                return audio_bytes
+            n = min(self._fade_samples, samples.size)
+            if n > 1 and is_first:
+                ramp = np.linspace(0.0, 1.0, n)
+                samples[:n] *= ramp
+            # Mild end fade on short trailing silence edges reduces tick between sentences
+            if n > 1 and samples.size >= n:
+                end_ramp = np.linspace(1.0, 0.85, n)
+                # only soften very last micro-edge, not full fade-out
+                samples[-n:] *= end_ramp
+            samples = np.clip(samples, -32768, 32767).astype(np.int16)
+            return samples.tobytes()
+        except Exception:
+            return audio_bytes
+
     def _synthesize_one(self, text: str) -> None:
         headers = {"Content-Type": "application/json", "Authorization": f"Basic {self.auth}"}
         request_start = time.time()
+        self._first_chunk = True
 
         # Sanitize text
         text = text.replace("\u2019", "'").replace("\u2018", "'")
