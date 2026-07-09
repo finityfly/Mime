@@ -19,7 +19,7 @@ class TTSProcessor:
 
         if self.audio_callback is None:
             self.p = pyaudio.PyAudio()
-            self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=48000, output=True)
+            self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=48000, output=True, frames_per_buffer=2048)
         else:
             self.p = None
             self.stream = None
@@ -33,6 +33,35 @@ class TTSProcessor:
         self.is_running = False
         self._thread: threading.Thread | None = None
 
+
+
+    def _apply_fade_in(self, audio_bytes: bytes) -> bytes:
+        """Ramp in the start of a PCM int16 buffer to avoid click/tick on playback."""
+        if not audio_bytes:
+            return audio_bytes
+        import array
+        samples = array.array('h')
+        samples.frombytes(audio_bytes)
+        n = min(len(samples), int(self._fade_samples))
+        if n <= 1:
+            return audio_bytes
+        for i in range(n):
+            samples[i] = int(samples[i] * (i / n))
+        return samples.tobytes()
+
+    def _apply_fade_out(self, audio_bytes: bytes) -> bytes:
+        """Ramp out the end of a PCM int16 buffer."""
+        if not audio_bytes:
+            return audio_bytes
+        import array
+        samples = array.array('h')
+        samples.frombytes(audio_bytes)
+        n = min(len(samples), int(self._fade_samples))
+        if n <= 1:
+            return audio_bytes
+        for i in range(n):
+            samples[-(i + 1)] = int(samples[-(i + 1)] * (i / n))
+        return samples.tobytes()
 
     def _synthesize_one(self, text: str) -> None:
         headers = {"Content-Type": "application/json", "Authorization": f"Basic {self.auth}"}
@@ -60,6 +89,8 @@ class TTSProcessor:
         url = "https://api.inworld.ai/tts/v1/voice:stream"
         debug_buf = bytearray()
         received_first = False
+        self._first_chunk = True
+        last_audio = None
 
         try:
             # mark playback active if user provided an event
@@ -100,13 +131,22 @@ class TTSProcessor:
 
                         if self.audio_callback is not None:
                             try:
-                                self.audio_callback(audio_bytes)
+                                play_bytes = audio_bytes
+                                if self._first_chunk:
+                                    play_bytes = self._apply_fade_in(play_bytes)
+                                    self._first_chunk = False
+                                self.audio_callback(play_bytes)
                                 self.log("[TTS-DEBUG] Forwarded chunk to audio_callback")
                             except Exception as e:
                                 self.log(f"[TTS] audio_callback error: {e}")
                         else:
                             try:
-                                self.stream.write(audio_bytes)
+                                play_bytes = audio_bytes
+                                if self._first_chunk:
+                                    play_bytes = self._apply_fade_in(play_bytes)
+                                    self._first_chunk = False
+                                last_audio = play_bytes
+                                self.stream.write(play_bytes)
                             except Exception as e:
                                 self.log(f"[TTS] Playback error: {e}")
 

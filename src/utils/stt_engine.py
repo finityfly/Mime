@@ -22,9 +22,9 @@ class STTProcessor:
         # calibration: raised threshold to avoid keyboard/typing noise being
         # detected as speech. MIN_SPEECH_CHUNKS prevents very short captures
         # (like clicks) from being sent to the recognizer.
-        self.SILENCE_THRESHOLD = 800
+        self.SILENCE_THRESHOLD = 1000
         self.MAX_SILENT_CHUNKS = 12  # ~12 * 1024/16000 = ~0.77s of silence to finalize
-        self.MIN_SPEECH_CHUNKS = 3   # ignore utterances shorter than ~0.19s
+        self.MIN_SPEECH_CHUNKS = 5   # ignore short clicks/ticks (~0.32s)
 
         self.p = pyaudio.PyAudio()
         self.input_device_index = input_device_index
