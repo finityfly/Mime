@@ -64,6 +64,12 @@ class STTProcessor:
 
             while self.is_running:
                 data = self._stream.read(self.CHUNK, exception_on_overflow=False)
+                # Drop mic input while TTS is speaking to avoid feedback ticks / echo loops
+                if self.playback_event is not None and self.playback_event.is_set():
+                    frames = []
+                    silent_chunks_count = 0
+                    recording_started = False
+                    continue
                 rms = self._calculate_rms(data)
                 
                 if rms > self.SILENCE_THRESHOLD:

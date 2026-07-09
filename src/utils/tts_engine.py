@@ -1,6 +1,7 @@
 import os, json, base64, asyncio, threading, time
 import requests
 import pyaudio
+import numpy as np
 
 
 class TTSProcessor:
@@ -84,6 +85,7 @@ class TTSProcessor:
         url = "https://api.inworld.ai/tts/v1/voice:stream"
         debug_buf = bytearray()
         received_first = False
+        first_audio_write = True
 
         try:
             # mark playback active if user provided an event
@@ -130,7 +132,8 @@ class TTSProcessor:
                                 self.log(f"[TTS] audio_callback error: {e}")
                         else:
                             try:
-                                self.stream.write(audio_bytes)
+                                self.stream.write(self._prepare_audio(audio_bytes, is_first=first_audio_write))
+                                first_audio_write = False
                             except Exception as e:
                                 self.log(f"[TTS] Playback error: {e}")
 
