@@ -265,5 +265,5 @@ class STTProcessor:
     def start(self):
         self._stream_thread = threading.Thread(target=self._stream_audio, daemon=True)
         self._process_thread = threading.Thread(target=self._process_audio, daemon=True)
-        self._thread.start()
+        self._stream_thread.start()
         self._process_thread.start()
