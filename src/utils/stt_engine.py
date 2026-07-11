@@ -7,6 +7,7 @@ import time
 import pyaudio
 import numpy as np
 from groq import Groq
+import string
 
 
 class STTProcessor:
@@ -121,10 +122,14 @@ class STTProcessor:
         if len(lower) < 3 and not lower.isalpha():
             return True
 
+        # Normalise: strip common trailing punctuation so "thank you." and "bye bye!"
+        # match the exact entries in HALLUCINATIONS without broadening the filter.
+        stripped = lower.rstrip(string.punctuation)
+
         # Check the expanded hallucination phrase list -- exact match only to avoid
         # rejecting valid speech like "a quick test" or "to be or not to be"
         for phrase in self.HALLUCINATIONS:
-            if phrase == lower:
+            if phrase == lower or phrase == stripped:
                 return True
 
         # Reject text with no alphabetic characters (pure numbers, punctuation, symbols)
@@ -260,5 +265,5 @@ class STTProcessor:
     def start(self):
         self._stream_thread = threading.Thread(target=self._stream_audio, daemon=True)
         self._process_thread = threading.Thread(target=self._process_audio, daemon=True)
-        self._stream_thread.start()
+        self._thread.start()
         self._process_thread.start()
