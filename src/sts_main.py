@@ -2,6 +2,7 @@ import time
 import os
 from dotenv import load_dotenv
 from queue import Queue
+import threading
 from utils.stt_engine import STTProcessor
 from utils.mt_engine import MTProcessor
 from utils.tts_engine import TTSProcessor
@@ -15,6 +16,7 @@ class LiveOrchestrator:
     def __init__(self):
         self.stt_to_mt = Queue()
         self.mt_to_tts = Queue()
+        self.playback_event = threading.Event()
 
     def logger(self, message):
         timestamp = time.strftime("%H:%M:%S")
@@ -58,9 +60,9 @@ class LiveOrchestrator:
 
         selected_input_index = choose_audio_input_device(self.logger)
 
-        self.tts = TTSProcessor(self.mt_to_tts, self.logger)
+        self.tts = TTSProcessor(self.mt_to_tts, self.logger, playback_event=self.playback_event)
         self.mt = MTProcessor(self.stt_to_mt, self.mt_to_tts, self.logger)
-        self.stt = STTProcessor(self.stt_to_mt, self.logger, input_device_index=selected_input_index)
+        self.stt = STTProcessor(self.stt_to_mt, self.logger, input_device_index=selected_input_index, playback_event=self.playback_event)
 
         self.tts.start()
         self.mt.start()

@@ -8,7 +8,7 @@ import numpy as np
 from groq import Groq
 
 class STTProcessor:
-    def __init__(self, output_queue, log_callback, input_device_index: int | None = None):
+    def __init__(self, output_queue, log_callback, input_device_index: int | None = None, playback_event=None):
         self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.output_queue = output_queue
         self.log = log_callback
@@ -28,6 +28,7 @@ class STTProcessor:
 
         self.p = pyaudio.PyAudio()
         self.input_device_index = input_device_index
+        self.playback_event = playback_event
         if self.input_device_index is not None:
             self.log(f"[STT] Using audio input device index: {self.input_device_index}")
         self.audio_queue = queue.Queue()
@@ -63,6 +64,12 @@ class STTProcessor:
 
             while self.is_running:
                 data = self._stream.read(self.CHUNK, exception_on_overflow=False)
+                # Drop mic input while TTS is speaking to avoid feedback ticks / echo loops
+                if self.playback_event is not None and self.playback_event.is_set():
+                    frames = []
+                    silent_chunks_count = 0
+                    recording_started = False
+                    continue
                 rms = self._calculate_rms(data)
                 
                 if rms > self.SILENCE_THRESHOLD:
